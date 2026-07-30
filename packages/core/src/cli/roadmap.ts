@@ -9,20 +9,10 @@ export interface RoadmapCommand {
   readonly name: string;
   readonly summary: string;
   /** Development phase (DEVELOPMENT-PLAN.md §2) that ships this command. */
-  readonly phase: 'D1' | 'D2' | 'D3' | 'D4' | 'D5' | 'D6';
+  readonly phase: 'D2' | 'D3' | 'D4' | 'D5' | 'D6';
 }
 
 export const ROADMAP_COMMANDS: readonly RoadmapCommand[] = [
-  {
-    name: 'ledger',
-    summary: 'Show the exact credit ledger by day, model, and cost centre.',
-    phase: 'D1',
-  },
-  {
-    name: 'verify',
-    summary: 'Print the source file and byte offset backing a figure.',
-    phase: 'D1',
-  },
   {
     name: 'dashboard',
     summary: 'Start the local read-only reporting dashboard.',

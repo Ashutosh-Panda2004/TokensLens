@@ -1,4 +1,5 @@
 import { ansi, isColorSupported } from './ansi.js';
+import { formatTable } from './table-format.js';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'silent';
 
@@ -108,22 +109,13 @@ export function createLogger(options: LoggerOptions = {}): Logger {
     },
 
     table(rows): void {
-      const [firstRow] = rows;
-      if (!firstRow) return;
+      const formatted = formatTable(rows);
+      if (!formatted) return;
 
-      const keys = Object.keys(firstRow);
-      const widths = keys.map((key) =>
-        Math.max(key.length, ...rows.map((row) => String(row[key] ?? '').length)),
-      );
-
-      const header = keys.map((key, i) => key.padEnd(widths[i] ?? key.length)).join('  ');
-      emit('info', paint(ansi.bold, header));
-      emit('info', paint(ansi.gray, '─'.repeat(header.length)));
-      for (const row of rows) {
-        emit(
-          'info',
-          keys.map((key, i) => String(row[key] ?? '').padEnd(widths[i] ?? 0)).join('  '),
-        );
+      emit('info', paint(ansi.bold, formatted.header));
+      emit('info', paint(ansi.gray, formatted.separator));
+      for (const row of formatted.rows) {
+        emit('info', row);
       }
     },
 

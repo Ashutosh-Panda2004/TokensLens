@@ -1,0 +1,3 @@
+{"kind":0,"v":{"sessionId":"session-malformed","requests":[]}}
+{"kind":2,"k":["requests"],"v":[{"requestId":"req-malformed-1","timestamp":1735689600000,"modelId":"copilot/claude-sonnet-5","promptTokenDetails":[],"result":{"metadata":{"promptTokens":2000,"outputTokens":100,"resolvedModel":"copilot/claude-sonnet-5","toolCallRounds":[],"summaries":[]}}}]}
+{"kind":2,"k":["requests"],"v":[{"requestId":"req-trunc

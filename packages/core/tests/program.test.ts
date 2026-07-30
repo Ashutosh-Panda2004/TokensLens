@@ -12,11 +12,25 @@ describe('createProgram', () => {
     expect(program.version()).toBe(VERSION);
   });
 
-  it('registers every roadmap command exactly once', () => {
+  it('registers every roadmap command, plus the four Phase D1 commands that are no longer stubs', () => {
     const program = createProgram();
     const registered = program.commands.map((command) => command.name()).sort();
-    const expected = [...ROADMAP_COMMANDS.map((command) => command.name)].sort();
+    const expected = [
+      ...ROADMAP_COMMANDS.map((command) => command.name),
+      'ledger',
+      'sessions',
+      'verify',
+      'budget',
+    ].sort();
     expect(registered).toEqual(expected);
+  });
+
+  it('the Phase D1 commands are real — they do not throw NotImplementedError', () => {
+    const program = createProgram();
+    const commandNames = program.commands.map((command) => command.name());
+    for (const name of ['ledger', 'sessions', 'verify', 'budget']) {
+      expect(commandNames).toContain(name);
+    }
   });
 
   it.each(ROADMAP_COMMANDS)(

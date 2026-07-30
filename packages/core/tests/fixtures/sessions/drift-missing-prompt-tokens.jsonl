@@ -1,0 +1,3 @@
+{"kind":0,"v":{"sessionId":"session-drift","requests":[]}}
+{"kind":2,"k":["requests"],"v":[{"requestId":"req-drift-bad","timestamp":1735689600000,"modelId":"copilot/claude-sonnet-5","promptTokenDetails":[],"result":{"metadata":{"outputTokens":500,"resolvedModel":"copilot/claude-sonnet-5","toolCallRounds":[],"summaries":[]}}}]}
+{"kind":2,"k":["requests"],"v":[{"requestId":"req-drift-good","timestamp":1735689700000,"modelId":"copilot/claude-haiku-4-5","promptTokenDetails":[],"result":{"metadata":{"promptTokens":1000,"outputTokens":50,"resolvedModel":"copilot/claude-haiku-4-5","toolCallRounds":[],"summaries":[]}}}]}

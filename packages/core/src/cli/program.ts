@@ -2,6 +2,10 @@ import { Command } from 'commander';
 import { VERSION } from '../version.js';
 import { NotImplementedError } from '../shared/errors.js';
 import { ROADMAP_COMMANDS } from './roadmap.js';
+import { registerLedgerCommand } from './commands/ledger.js';
+import { registerSessionsCommand } from './commands/sessions.js';
+import { registerVerifyCommand } from './commands/verify.js';
+import { registerBudgetCommand } from './commands/budget.js';
 
 /**
  * Builds the commander program from scratch on every call — no shared
@@ -23,6 +27,12 @@ export function createProgram(): Command {
     // errors) into a thrown CommanderError, so cli/index.ts controls the
     // actual process exit uniformly instead of commander doing it directly.
     .exitOverride();
+
+  // Phase D1 — implemented for real, not roadmap stubs.
+  registerLedgerCommand(program);
+  registerSessionsCommand(program);
+  registerVerifyCommand(program);
+  registerBudgetCommand(program);
 
   for (const roadmapCommand of ROADMAP_COMMANDS) {
     program
