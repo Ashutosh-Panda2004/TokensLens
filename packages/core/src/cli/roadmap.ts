@@ -9,15 +9,10 @@ export interface RoadmapCommand {
   readonly name: string;
   readonly summary: string;
   /** Development phase (DEVELOPMENT-PLAN.md §2) that ships this command. */
-  readonly phase: 'D2' | 'D3' | 'D4' | 'D5' | 'D6';
+  readonly phase: 'D3' | 'D4' | 'D5' | 'D6';
 }
 
 export const ROADMAP_COMMANDS: readonly RoadmapCommand[] = [
-  {
-    name: 'dashboard',
-    summary: 'Start the local read-only reporting dashboard.',
-    phase: 'D2',
-  },
   {
     name: 'waste',
     summary: 'Rank measured waste by cause, with named remediation.',

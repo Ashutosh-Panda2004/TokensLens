@@ -20,3 +20,5 @@ export * from './store/database.js';
 export * from './ledger/rate-card.js';
 export * from './ledger/ledger.js';
 export * from './ledger/budget.js';
+export * from './dashboard/view-model.js';
+export * from './dashboard/export.js';

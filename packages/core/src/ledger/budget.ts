@@ -1,4 +1,4 @@
-import type { LedgerSummary } from './ledger.js';
+import type { DaySpend, LedgerSummary } from './ledger.js';
 
 export type CopilotPlan = 'business' | 'enterprise';
 
@@ -22,10 +22,31 @@ export interface BudgetForecast {
   readonly projectedMonthEndCredits: number;
   readonly projectedOverage: number;
   readonly onTrackToExceedAllowance: boolean;
+  /**
+   * The date the current daily run-rate would exhaust the full monthly
+   * allowance, projected forward from `now` (UTC, `YYYY-MM-DD`).
+   * `undefined` when there is no spend yet to project from. A date at or
+   * before `now` means the allowance is *already* exhausted, and by how
+   * many days.
+   */
+  readonly hardBlockDate?: string;
 }
 
 function daysInUtcMonth(year: number, monthIndex: number): number {
   return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+}
+
+/**
+ * The `DaySpend` entries that fall within `now`'s UTC calendar month.
+ * Exported so callers other than `forecastBudget` itself (the dashboard's
+ * view model, in particular) can derive figures — such as the measured
+ * vs. modelled split of `monthToDateCredits` — using the exact same
+ * month-selection rule, rather than re-deriving (and risking drifting
+ * from) it independently.
+ */
+export function selectMonthToDateDays(ledger: LedgerSummary, now: Date = new Date()): DaySpend[] {
+  const monthPrefix = `${String(now.getUTCFullYear())}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+  return ledger.byDay.filter((day) => day.day.startsWith(monthPrefix));
 }
 
 /**
@@ -45,14 +66,15 @@ export function forecastBudget(
   const daysInMonth = daysInUtcMonth(year, monthIndex);
   const daysElapsedInMonth = now.getUTCDate();
 
-  const monthPrefix = `${String(year)}-${String(monthIndex + 1).padStart(2, '0')}`;
-  const monthToDateCredits = ledger.byDay
-    .filter((day) => day.day.startsWith(monthPrefix))
-    .reduce((sum, day) => sum + day.credits, 0);
+  const monthToDateCredits = selectMonthToDateDays(ledger, now).reduce(
+    (sum, day) => sum + day.credits,
+    0,
+  );
 
   const dailyRate = daysElapsedInMonth > 0 ? monthToDateCredits / daysElapsedInMonth : 0;
   const projectedMonthEndCredits = dailyRate * daysInMonth;
   const projectedOverage = Math.max(0, projectedMonthEndCredits - monthlyAllowance);
+  const hardBlockDate = computeHardBlockDate(now, monthlyAllowance, monthToDateCredits, dailyRate);
 
   return {
     plan,
@@ -63,5 +85,27 @@ export function forecastBudget(
     projectedMonthEndCredits,
     projectedOverage,
     onTrackToExceedAllowance: projectedMonthEndCredits > monthlyAllowance,
+    ...(hardBlockDate !== undefined ? { hardBlockDate } : {}),
   };
+}
+
+/**
+ * Projects the UTC calendar date on which `dailyRate` would exhaust
+ * `monthlyAllowance`, given `monthToDateCredits` already spent. Returns
+ * `undefined` when there is no rate to project from (nothing spent yet).
+ */
+function computeHardBlockDate(
+  now: Date,
+  monthlyAllowance: number,
+  monthToDateCredits: number,
+  dailyRate: number,
+): string | undefined {
+  if (dailyRate <= 0) return undefined;
+
+  const remainingAllowance = monthlyAllowance - monthToDateCredits;
+  const daysUntilExhaustion = Math.ceil(remainingAllowance / dailyRate);
+
+  const exhaustionDate = new Date(now.getTime());
+  exhaustionDate.setUTCDate(exhaustionDate.getUTCDate() + daysUntilExhaustion);
+  return exhaustionDate.toISOString().slice(0, 10);
 }

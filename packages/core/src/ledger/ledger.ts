@@ -52,6 +52,8 @@ export interface DaySpend {
 export interface ModelSpend {
   readonly model: string;
   readonly credits: number;
+  readonly measuredCredits: number;
+  readonly modelledCredits: number;
   readonly requestCount: number;
   readonly rate: ModelRate;
 }
@@ -59,6 +61,8 @@ export interface ModelSpend {
 export interface SessionSpend {
   readonly sessionId: string;
   readonly credits: number;
+  readonly measuredCredits: number;
+  readonly modelledCredits: number;
   readonly requestCount: number;
   readonly firstTs: number;
   readonly lastTs: number;
@@ -74,6 +78,8 @@ export interface CostCentreSpend {
   readonly tokens: number;
   /** Each request's credits attributed across its cost centres in proportion to `percentageOfPrompt`. */
   readonly credits: number;
+  readonly measuredCredits: number;
+  readonly modelledCredits: number;
   readonly requestCount: number;
 }
 
@@ -114,12 +120,22 @@ export function buildLedger(db: Database.Database): LedgerSummary {
       requestCount: number;
     }
   >();
-  const byModelMap = new Map<string, { credits: number; requestCount: number }>();
+  const byModelMap = new Map<
+    string,
+    { credits: number; measuredCredits: number; modelledCredits: number; requestCount: number }
+  >();
   const bySessionMap = new Map<
     string,
-    { credits: number; requestCount: number; firstTs: number; lastTs: number }
+    {
+      credits: number;
+      measuredCredits: number;
+      modelledCredits: number;
+      requestCount: number;
+      firstTs: number;
+      lastTs: number;
+    }
   >();
-  const creditsByRequestId = new Map<string, number>();
+  const creditsByRequestId = new Map<string, { credits: number; isMeasured: boolean }>();
 
   let totalCredits = 0;
   let measuredCredits = 0;
@@ -129,7 +145,7 @@ export function buildLedger(db: Database.Database): LedgerSummary {
     const creditsValue = creditsForRow(row, rateCard);
     const credits = creditsValue.value;
     const isMeasured = creditsValue.provenance.kind === 'measured';
-    creditsByRequestId.set(row.requestId, credits);
+    creditsByRequestId.set(row.requestId, { credits, isMeasured });
 
     totalCredits += credits;
     if (isMeasured) measuredCredits += credits;
@@ -152,18 +168,29 @@ export function buildLedger(db: Database.Database): LedgerSummary {
     dayBucket.requestCount += 1;
     byDayMap.set(day, dayBucket);
 
-    const modelBucket = byModelMap.get(row.model) ?? { credits: 0, requestCount: 0 };
+    const modelBucket = byModelMap.get(row.model) ?? {
+      credits: 0,
+      measuredCredits: 0,
+      modelledCredits: 0,
+      requestCount: 0,
+    };
     modelBucket.credits += credits;
+    if (isMeasured) modelBucket.measuredCredits += credits;
+    else modelBucket.modelledCredits += credits;
     modelBucket.requestCount += 1;
     byModelMap.set(row.model, modelBucket);
 
     const sessionBucket = bySessionMap.get(row.sessionId) ?? {
       credits: 0,
+      measuredCredits: 0,
+      modelledCredits: 0,
       requestCount: 0,
       firstTs: row.ts,
       lastTs: row.ts,
     };
     sessionBucket.credits += credits;
+    if (isMeasured) sessionBucket.measuredCredits += credits;
+    else sessionBucket.modelledCredits += credits;
     sessionBucket.requestCount += 1;
     sessionBucket.firstTs = Math.min(sessionBucket.firstTs, row.ts);
     sessionBucket.lastTs = Math.max(sessionBucket.lastTs, row.ts);
@@ -199,17 +226,35 @@ export function buildLedger(db: Database.Database): LedgerSummary {
 
 function aggregateCostCentres(
   db: Database.Database,
-  creditsByRequestId: ReadonlyMap<string, number>,
+  creditsByRequestId: ReadonlyMap<string, { credits: number; isMeasured: boolean }>,
 ): CostCentreSpend[] {
-  const byLabelMap = new Map<string, { tokens: number; credits: number; requestCount: number }>();
+  const byLabelMap = new Map<
+    string,
+    {
+      tokens: number;
+      credits: number;
+      measuredCredits: number;
+      modelledCredits: number;
+      requestCount: number;
+    }
+  >();
 
   for (const row of getAllCostCentres(db)) {
-    const requestCredits = creditsByRequestId.get(row.requestId) ?? 0;
+    const request = creditsByRequestId.get(row.requestId);
+    const requestCredits = request?.credits ?? 0;
     const attributedCredits = (row.percentageOfPrompt / 100) * requestCredits;
 
-    const bucket = byLabelMap.get(row.label) ?? { tokens: 0, credits: 0, requestCount: 0 };
+    const bucket = byLabelMap.get(row.label) ?? {
+      tokens: 0,
+      credits: 0,
+      measuredCredits: 0,
+      modelledCredits: 0,
+      requestCount: 0,
+    };
     bucket.tokens += row.tokens;
     bucket.credits += attributedCredits;
+    if (request?.isMeasured) bucket.measuredCredits += attributedCredits;
+    else bucket.modelledCredits += attributedCredits;
     bucket.requestCount += 1;
     byLabelMap.set(row.label, bucket);
   }

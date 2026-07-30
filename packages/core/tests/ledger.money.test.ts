@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { openDatabase, saveTurnRecords } from '../src/store/database.js';
-import { buildLedger } from '../src/ledger/ledger.js';
+import { buildLedger, type LedgerSummary } from '../src/ledger/ledger.js';
 import type { TurnRecord } from '../src/model/turn-record.js';
 
 function record(overrides: Partial<TurnRecord> & Pick<TurnRecord, 'requestId' | 'ts'>): TurnRecord {
@@ -122,5 +122,91 @@ describe('ledger money conservation', () => {
     expect(ledger.byModel).toEqual([]);
     expect(ledger.bySession).toEqual([]);
     expect(ledger.byCostCentre).toEqual([]);
+  });
+
+  describe('provenance conservation', () => {
+    function mixedLedger(): LedgerSummary {
+      const db = openDatabase(':memory:');
+      saveTurnRecords(db, [
+        record({
+          requestId: 'measured-1',
+          ts: Date.UTC(2026, 0, 1),
+          credits: 10,
+          costCentres: [
+            {
+              category: 'System',
+              label: 'System Instructions',
+              percentageOfPrompt: 40,
+              tokens: 400,
+            },
+            { category: 'User Context', label: 'Messages', percentageOfPrompt: 60, tokens: 600 },
+          ],
+        }),
+        record({
+          requestId: 'modelled-1',
+          ts: Date.UTC(2026, 0, 2),
+          model: 'model-b',
+          sessionId: 'session-b',
+          costCentres: [
+            {
+              category: 'System',
+              label: 'System Instructions',
+              percentageOfPrompt: 40,
+              tokens: 400,
+            },
+            { category: 'User Context', label: 'Messages', percentageOfPrompt: 60, tokens: 600 },
+          ],
+        }),
+      ]);
+      return buildLedger(db);
+    }
+
+    it('every breakdown splits its credits into measured + modelled, exactly', () => {
+      const ledger = mixedLedger();
+      const buckets = [
+        ...ledger.byDay,
+        ...ledger.byModel,
+        ...ledger.bySession,
+        ...ledger.byCostCentre,
+      ];
+
+      expect(buckets.length).toBeGreaterThan(0);
+      for (const bucket of buckets) {
+        expect(bucket.measuredCredits + bucket.modelledCredits).toBeCloseTo(bucket.credits, 9);
+      }
+    });
+
+    it('the measured and modelled parts each sum to the ledger totals, across every breakdown', () => {
+      const ledger = mixedLedger();
+
+      for (const breakdown of [ledger.byDay, ledger.byModel, ledger.bySession]) {
+        const measured = breakdown.reduce((sum, b) => sum + b.measuredCredits, 0);
+        const modelled = breakdown.reduce((sum, b) => sum + b.modelledCredits, 0);
+        expect(measured).toBeCloseTo(ledger.measuredCredits, 9);
+        expect(modelled).toBeCloseTo(ledger.modelledCredits, 9);
+      }
+    });
+
+    it('attributes a measured request only to measured, and an unmeasured one only to modelled', () => {
+      const ledger = mixedLedger();
+
+      const measuredModel = ledger.byModel.find((m) => m.model === 'model-a');
+      expect(measuredModel?.modelledCredits).toBe(0);
+      expect(measuredModel?.measuredCredits).toBeCloseTo(10, 9);
+
+      const modelledModel = ledger.byModel.find((m) => m.model === 'model-b');
+      expect(modelledModel?.measuredCredits).toBe(0);
+      expect(modelledModel?.modelledCredits).toBeGreaterThan(0);
+    });
+
+    it('splits cost-centre credits by provenance too, so the tool-definitions share can be trusted', () => {
+      const ledger = mixedLedger();
+      const centre = ledger.byCostCentre.find((c) => c.label === 'Messages');
+
+      // Both requests put 60% of their prompt in Messages, so it carries 60%
+      // of each request's credits — 60% measured, 60% modelled.
+      expect(centre?.measuredCredits).toBeCloseTo(ledger.measuredCredits * 0.6, 9);
+      expect(centre?.modelledCredits).toBeCloseTo(ledger.modelledCredits * 0.6, 9);
+    });
   });
 });

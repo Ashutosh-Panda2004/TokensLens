@@ -10,6 +10,10 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/*.config.ts',
       '**/*.config.js',
+      // Browser assets served verbatim to the dashboard page — plain ES
+      // modules, deliberately outside the TypeScript project (no build
+      // step), so the type-aware rules have no program to resolve them in.
+      '**/src/dashboard/static/**',
     ],
   },
   eslint.configs.recommended,

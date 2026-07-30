@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TokenLens — Credit Ledger</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="tl-header">
+      <h1>TokenLens</h1>
+      <p class="tl-subtitle">
+        Measured GitHub Copilot credit ledger — every figure traces to a file this machine already
+        wrote
+      </p>
+    </header>
+
+    <main id="app">
+      <p class="tl-loading">Loading…</p>
+    </main>
+
+    <footer class="tl-footer">
+      <p>
+        <span class="tl-chip tl-chip-measured">measured</span> read directly from a field VS Code
+        wrote to disk. · <span class="tl-chip tl-chip-blended">~N% measured</span> a mix, exact
+        split on hover. · <span class="tl-chip tl-chip-modelled">modelled</span> estimated — hover
+        for the assumption.
+      </p>
+    </footer>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
