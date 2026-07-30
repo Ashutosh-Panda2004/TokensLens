@@ -1,0 +1,8 @@
+dist/
+coverage/
+node_modules/
+package-lock.json
+
+# Hand-formatted planning documents with careful manual table alignment —
+# do not let prettier's markdown formatter reflow them.
+*.md

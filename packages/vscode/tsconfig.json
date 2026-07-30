@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // module/moduleResolution are inherited as NodeNext from the base
+    // config, not overridden to the classic "CommonJS"/"Node" pair: this
+    // package.json has no "type": "module", so NodeNext still resolves
+    // and emits extension.ts as CommonJS (what the classic VS Code
+    // extension host requires) — without the "Node" moduleResolution
+    // value, which is deprecated as of TypeScript 6.0 and removed in 7.0.
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "types": ["node", "vscode"],
+    // The classic VS Code extension host requires a CommonJS entry point.
+    // verbatimModuleSyntax (inherited from tsconfig.base.json) forbids
+    // top-level value `export` in a CommonJS module (TS1287) — it assumes
+    // an ESM target. This is the one package in the monorepo where that
+    // trade-off goes the other way, so it is opted out locally rather than
+    // relaxed for everyone else.
+    "verbatimModuleSyntax": false
+  },
+  "include": ["src/**/*"],
+  "exclude": ["dist", "node_modules"]
+}

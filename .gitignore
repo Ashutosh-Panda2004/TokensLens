@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# TokenLens local runtime state (created by the tool itself, never checked in)
+.tokenlens/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log
+.vscode/*
+!.vscode/extensions.json

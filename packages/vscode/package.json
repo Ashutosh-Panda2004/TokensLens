@@ -1,0 +1,26 @@
+{
+  "name": "tokenlens-vscode",
+  "displayName": "TokenLens",
+  "description": "Status-bar Copilot credit HUD and pre-flight cost estimate for VS Code. Placeholder — functionality ships in Phase D7.",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "tokenlens",
+  "engines": {
+    "vscode": "^1.90.0",
+    "node": ">=20"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {},
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0"
+  }
+}
