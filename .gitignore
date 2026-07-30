@@ -11,6 +11,9 @@ coverage/
 # TokenLens local runtime state (created by the tool itself, never checked in)
 .tokenlens/
 
+# Internal strategic/business planning doc — not for the remote repo
+/DEVELOPMENT-PLAN.md
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db
