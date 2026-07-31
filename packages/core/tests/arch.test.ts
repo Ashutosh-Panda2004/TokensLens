@@ -6,11 +6,9 @@ import { dirname, extname, join, relative } from 'node:path';
 /**
  * Forbidden import edges (DEVELOPMENT-PLAN.md rule AI-3 / §0.2 AI rules).
  *
- * Deliberately declarative and forward-looking: `src/hooks`, `src/ledger`,
- * and `src/policy` do not exist yet in Phase D0, so every rule below is
- * currently satisfied vacuously (no files match `fromPrefix`). As those
- * directories are populated in later phases, this test starts enforcing
- * the rule against real files with zero changes required here.
+ * Written declaratively in D0, before any of these directories existed, so
+ * that populating them in a later phase started enforcing the rule with no
+ * change here. All three now match real files.
  */
 const FORBIDDEN_IMPORTS: readonly {
   fromPrefix: string;
@@ -41,6 +39,52 @@ const FORBIDDEN_IMPORTS: readonly {
 
 const SRC_ROOT = fileURLToPath(new URL('../src', import.meta.url));
 const PACKAGE_ROOT = dirname(SRC_ROOT.replace(/[\\/]$/, ''));
+
+/**
+ * Constraint H-3: a runtime guard makes **zero network calls and zero model
+ * calls**.
+ *
+ * Enforced here rather than promised in a comment, because this is the one
+ * claim that has to survive a security review. A hook is a subprocess the
+ * agent runs on every tool call, on a developer's machine, with their
+ * credentials — if it could reach the network, every other privacy
+ * guarantee in this product would rest on trust rather than on structure.
+ *
+ * Bare specifiers are checked separately from relative ones because the
+ * dangerous imports here are all built-ins.
+ */
+const FORBIDDEN_PACKAGES: readonly {
+  fromPrefix: string;
+  packages: readonly string[];
+  reason: string;
+}[] = [
+  {
+    fromPrefix: 'src/hooks',
+    packages: [
+      'node:http',
+      'node:https',
+      'node:net',
+      'node:tls',
+      'node:dgram',
+      'http',
+      'https',
+      'undici',
+      'axios',
+      'node-fetch',
+    ],
+    reason:
+      'H-3: a runtime guard makes zero network calls. It runs per tool call, inside a 50ms budget.',
+  },
+  {
+    fromPrefix: 'src/mcp',
+    packages: ['node:http', 'node:https', 'node:net', 'node:tls', 'undici', 'axios', 'node-fetch'],
+    reason:
+      'The budget-guard MCP server speaks stdio to a local agent and has no reason to open a socket.',
+  },
+];
+
+/** `fetch` needs no import, so the ban has to be checked in the source text too. */
+const FETCH_PATTERN = /\bfetch\s*\(/;
 
 function collectSourceFiles(dir: string): string[] {
   let entries;
@@ -115,6 +159,37 @@ describe('architectural import boundaries', () => {
                 `which is forbidden: ${rule.reason}`,
             );
           }
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it('never opens a socket from a runtime guard or the MCP server', () => {
+    const violations: string[] = [];
+
+    for (const file of collectSourceFiles(SRC_ROOT)) {
+      const packageRelativeFile = toPackageRelative(file);
+      const rules = FORBIDDEN_PACKAGES.filter((rule) =>
+        packageRelativeFile.startsWith(rule.fromPrefix),
+      );
+      if (rules.length === 0) continue;
+
+      const source = readFileSync(file, 'utf8');
+      const specifiers = extractImportSpecifiers(source);
+
+      for (const rule of rules) {
+        for (const specifier of specifiers) {
+          if (rule.packages.includes(specifier)) {
+            violations.push(`${packageRelativeFile} imports "${specifier}": ${rule.reason}`);
+          }
+        }
+        // Strip comments before looking for `fetch(`, so prose about not
+        // calling it does not read as calling it.
+        const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+        if (FETCH_PATTERN.test(code)) {
+          violations.push(`${packageRelativeFile} calls fetch(): ${rule.reason}`);
         }
       }
     }

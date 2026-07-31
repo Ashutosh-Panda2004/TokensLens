@@ -9,11 +9,12 @@ fleet-wide, with no developer action required. It grew out of a companion strate
 (`PLAN.md`) covering the research and business case; this repository is the build.
 
 **Build plan:** [`DEVELOPMENT-PLAN.md`](DEVELOPMENT-PLAN.md) — ten phases, D0 through D9.
-**Current status:** Phases **D0–D5 and D10 complete**, plus the privacy rule (P7) enforced across all
-of them. The measurement spine is finished, advisory has become enforcement, and the outcome layer
-can now say whether any of it helped: ledger, dashboard, waste attribution, simulation, a policy
-compiler that emits the artefact an MDM team deploys, and a causal estimator for what a dated change
-in AI availability actually did. Next is **D6 · Runtime guards**.
+**Current status:** Phases **D0–D7 and D10 complete**, plus the privacy rule (P7) enforced across all
+of them. The measurement spine is finished, advisory has become enforcement, waste is now intercepted
+at the moment it happens, and the outcome layer can say whether any of it helped: ledger, dashboard,
+waste attribution, simulation, a policy compiler that emits the artefact an MDM team deploys, runtime
+guards that refuse a provably redundant tool call, a status-bar HUD, and a causal estimator for what a
+dated change in AI availability actually did. Next is **D8 · Holdout & proof**.
 
 ## What this is (and isn't)
 
@@ -54,13 +55,15 @@ TokenLens/
 │  │  │  ├─ waste/            # W1..W14 detectors, one file each
 │  │  │  ├─ simulate/         # replay engine, policy DSL, levers, ceiling guard
 │  │  │  ├─ policy/           # channel detection + emitters + rollback
+│  │  │  ├─ hooks/            # runtime guards — protocol, guard state, dispatch, fail-open
+│  │  │  ├─ mcp/              # JSON-RPC budget guard over stdio
 │  │  │  ├─ outcomes/         # git ingest, survival, effort, displacement, causal estimator
 │  │  │  ├─ privacy/          # scope, identifier hashing, the report gate
 │  │  │  ├─ dashboard/        # fastify + static SPA
 │  │  │  ├─ shared/           # logger, config, io, errors, security baseline
 │  │  │  └─ cli/              # commander wiring — one file per command
 │  │  └─ tests/
-│  └─ vscode/                 # Phase D7 placeholder — status-bar HUD extension
+│  └─ vscode/                 # status-bar HUD extension — a thin client over the binary
 └─ .github/workflows/ci.yml   # format, lint, typecheck, build, test on every push
 ```
 
@@ -84,6 +87,10 @@ tokenlens policy verify       # did the deploy actually take effect?
 tokenlens outcomes survival   # how much of what is written survives, and where effort goes
 tokenlens outcomes displacement   # is work being relocated rather than eliminated?
 tokenlens outcomes effect --cohorts licences.csv   # what a dated change in AI availability did
+tokenlens hook install        # print the hook config; --out <dir> to write it
+tokenlens hook status         # what each guard did, what it reversed, what stood itself down
+tokenlens hook disable <guard>    # turn one guard off without disabling the rest
+tokenlens mcp                 # budget guard over stdio, for the agent to consult before it spends
 ```
 
 ## What's implemented
@@ -101,6 +108,9 @@ tokenlens outcomes effect --cohorts licences.csv   # what a dated change in AI a
 | D3 | Seven waste detectors; seven more declared undetectable **with stated blockers** | `src/waste/` |
 | D4 | Counterfactual replay engine, policy DSL, six levers, contract-ceiling guard | `src/simulate/` |
 | D5 | Channel detection, emitters for MDM / macOS / file-based / workspace / `.agent.md`, rollbacks | `src/policy/` |
+| D6 | Five runtime guards, fail-open dispatch, insistence-based auto-disable, hook config generator | `src/hooks/` |
+| D6 | MCP budget guard — hand-rolled JSON-RPC over stdio, no SDK dependency | `src/mcp/` |
+| D7 | Status-bar HUD, spend breakdown, one-click fresh chat — zero business logic | `packages/vscode/` |
 | D10 | Code survival, effort decomposition, displacement detection, staggered difference-in-differences | `src/outcomes/` |
 | P7 | Privacy enforcement — salted-hash identifiers, k-anonymity floor, a gate that throws before a report is written | `src/privacy/` |
 

@@ -12,7 +12,7 @@ describe('createProgram', () => {
     expect(program.version()).toBe(VERSION);
   });
 
-  it('registers every roadmap command, plus the Phase D1–D5 commands that are no longer stubs', () => {
+  it('registers every roadmap command, plus the Phase D1–D6 commands that are no longer stubs', () => {
     const program = createProgram();
     const registered = program.commands.map((command) => command.name()).sort();
     const expected = [
@@ -27,11 +27,13 @@ describe('createProgram', () => {
       'simulate',
       'policy',
       'outcomes',
+      'hook',
+      'mcp',
     ].sort();
     expect(registered).toEqual(expected);
   });
 
-  it('the Phase D1–D5 commands are real — they do not throw NotImplementedError', () => {
+  it('the Phase D1–D6 commands are real — they do not throw NotImplementedError', () => {
     const program = createProgram();
     const commandNames = program.commands.map((command) => command.name());
     for (const name of [
@@ -45,14 +47,22 @@ describe('createProgram', () => {
       'simulate',
       'policy',
       'outcomes',
+      'hook',
+      'mcp',
     ]) {
       expect(commandNames).toContain(name);
     }
   });
 
-  it.each(ROADMAP_COMMANDS)(
-    '"$name" reports NotImplementedError naming Phase $phase',
-    async (roadmapCommand) => {
+  /**
+   * The roadmap list is empty as of D6 — every planned command has a real
+   * implementation. The check is kept rather than deleted: the contract it
+   * enforces is what stopped `--help` and the plan drifting apart for six
+   * phases, and it starts working again the moment a command is registered
+   * ahead of being built.
+   */
+  it('leaves no command registered without an implementation', async () => {
+    for (const roadmapCommand of ROADMAP_COMMANDS) {
       const program = createProgram();
       let caught: unknown;
 
@@ -67,8 +77,10 @@ describe('createProgram', () => {
         command: roadmapCommand.name,
         phase: roadmapCommand.phase,
       });
-    },
-  );
+    }
+
+    expect(ROADMAP_COMMANDS).toEqual([]);
+  });
 
   it('converts --version into a zero-exit CommanderError instead of killing the process', async () => {
     const program = createProgram();

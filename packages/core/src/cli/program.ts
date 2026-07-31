@@ -11,6 +11,7 @@ import { registerMcpRoiCommand, registerWasteCommand } from './commands/waste.js
 import { registerSimulateCommand } from './commands/simulate.js';
 import { registerPolicyCommand } from './commands/policy.js';
 import { registerOutcomesCommand } from './commands/outcomes.js';
+import { registerHookCommand, registerMcpCommand } from './commands/hook.js';
 
 /**
  * Builds the commander program from scratch on every call — no shared
@@ -54,6 +55,10 @@ export function createProgram(): Command {
 
   // Phase D10.
   registerOutcomesCommand(program);
+
+  // Phase D6.
+  registerHookCommand(program);
+  registerMcpCommand(program);
 
   for (const roadmapCommand of ROADMAP_COMMANDS) {
     program

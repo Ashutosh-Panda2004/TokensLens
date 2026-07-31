@@ -1,7 +1,7 @@
 {
   "name": "tokenlens-vscode",
   "displayName": "TokenLens",
-  "description": "Status-bar Copilot credit HUD and pre-flight cost estimate for VS Code. Placeholder — functionality ships in Phase D7.",
+  "description": "Live Copilot credit HUD, pre-flight cost estimate and session-age indicator. A thin client over the tokenlens binary.",
   "version": "0.1.0",
   "private": true,
   "publisher": "tokenlens",
@@ -13,11 +13,67 @@
     "Other"
   ],
   "main": "./dist/extension.js",
-  "activationEvents": [],
-  "contributes": {},
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "tokenlens.refresh",
+        "title": "Refresh credit figures",
+        "category": "TokenLens"
+      },
+      {
+        "command": "tokenlens.openDashboard",
+        "title": "Open dashboard",
+        "category": "TokenLens"
+      },
+      {
+        "command": "tokenlens.showBreakdown",
+        "title": "Show spend breakdown",
+        "category": "TokenLens"
+      },
+      {
+        "command": "tokenlens.newChat",
+        "title": "Start a fresh chat",
+        "category": "TokenLens"
+      }
+    ],
+    "configuration": {
+      "title": "TokenLens",
+      "properties": {
+        "tokenlens.binaryPath": {
+          "type": "string",
+          "default": "tokenlens",
+          "description": "How to invoke the TokenLens core binary. Leave as 'tokenlens' if it is on PATH."
+        },
+        "tokenlens.plan": {
+          "type": "string",
+          "enum": [
+            "business",
+            "enterprise"
+          ],
+          "default": "enterprise",
+          "description": "Copilot plan, which sets the included monthly allowance."
+        },
+        "tokenlens.refreshSeconds": {
+          "type": "number",
+          "default": 120,
+          "minimum": 30,
+          "description": "How often to re-read the ledger. Each refresh runs the core binary, so this is not free."
+        },
+        "tokenlens.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the status-bar item."
+        }
+      }
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
+    "package": "vsce package --no-dependencies",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "devDependencies": {
