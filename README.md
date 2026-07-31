@@ -9,12 +9,11 @@ fleet-wide, with no developer action required. It grew out of a companion strate
 (`PLAN.md`) covering the research and business case; this repository is the build.
 
 **Build plan:** [`DEVELOPMENT-PLAN.md`](DEVELOPMENT-PLAN.md) — ten phases, D0 through D9.
-**Current status:** Phases **D0–D7 and D10 complete**, plus the privacy rule (P7) enforced across all
-of them. The measurement spine is finished, advisory has become enforcement, waste is now intercepted
-at the moment it happens, and the outcome layer can say whether any of it helped: ledger, dashboard,
-waste attribution, simulation, a policy compiler that emits the artefact an MDM team deploys, runtime
-guards that refuse a provably redundant tool call, a status-bar HUD, and a causal estimator for what a
-dated change in AI availability actually did. Next is **D8 · Holdout & proof**.
+**Current status:** **every phase, D0 through D10, is complete**, with the privacy rule (P7) enforced
+across all of them. The full chain now runs end to end: measure the spend exactly, attribute the
+waste, price the fix, deploy it as a managed setting, intercept what configuration cannot reach,
+show the cost where the decision is made, prove the result against a randomised holdout, roll it up
+across a fleet, and re-fit the policy when the fleet moves out from under it.
 
 ## What this is (and isn't)
 
@@ -58,6 +57,8 @@ TokenLens/
 │  │  │  ├─ hooks/            # runtime guards — protocol, guard state, dispatch, fail-open
 │  │  │  ├─ mcp/              # JSON-RPC budget guard over stdio
 │  │  │  ├─ outcomes/         # git ingest, survival, effort, displacement, causal estimator
+│  │  │  ├─ holdout/          # randomised design, power, pre-registration, guardrails, auto-rollback
+│  │  │  ├─ org/              # sync bundle + manifest, fleet rollup, OTel ingest, drift, alerts
 │  │  │  ├─ privacy/          # scope, identifier hashing, the report gate
 │  │  │  ├─ dashboard/        # fastify + static SPA
 │  │  │  ├─ shared/           # logger, config, io, errors, security baseline
@@ -91,6 +92,15 @@ tokenlens hook install        # print the hook config; --out <dir> to write it
 tokenlens hook status         # what each guard did, what it reversed, what stood itself down
 tokenlens hook disable <guard>    # turn one guard off without disabling the rest
 tokenlens mcp                 # budget guard over stdio, for the agent to consult before it spends
+tokenlens holdout assign --roster fleet.csv   # stratified randomised holdout + pre-registration hash
+tokenlens holdout analyse      # the caveats, then the effect — in that order
+tokenlens holdout overrides --policy p.yml    # are developers switching back off the routed model?
+tokenlens holdout rollback     # a guardrail broke, so revert without asking
+tokenlens holdout pnl --input months.json     # realised saving vs simulated, and the gap
+tokenlens org sync --team platform            # aggregate-only bundle, with a manifest of every field
+tokenlens org rollup --bundles ./bundles      # fleet view, small teams suppressed
+tokenlens org drift --policy p.yml --snapshot fit.json   # has the fleet moved out from under the policy?
+tokenlens org alerts --bundles ./bundles      # robust anomaly payload; posts nothing
 ```
 
 ## What's implemented
@@ -111,6 +121,8 @@ tokenlens mcp                 # budget guard over stdio, for the agent to consul
 | D6 | Five runtime guards, fail-open dispatch, insistence-based auto-disable, hook config generator | `src/hooks/` |
 | D6 | MCP budget guard — hand-rolled JSON-RPC over stdio, no SDK dependency | `src/mcp/` |
 | D7 | Status-bar HUD, spend breakdown, one-click fresh chat — zero business logic | `packages/vscode/` |
+| D8 | Stratified randomised holdout, pre-registration hash, power/MDE, Benjamini–Hochberg, guardrails, auto-rollback, savings P&L | `src/holdout/` |
+| D9 | Manifest-audited sync bundle, fleet rollup with k-anonymity, OTel ingest, drift detection, robust anomaly alerts | `src/org/` |
 | D10 | Code survival, effort decomposition, displacement detection, staggered difference-in-differences | `src/outcomes/` |
 | P7 | Privacy enforcement — salted-hash identifiers, k-anonymity floor, a gate that throws before a report is written | `src/privacy/` |
 

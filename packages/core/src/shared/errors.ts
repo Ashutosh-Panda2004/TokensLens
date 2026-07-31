@@ -240,7 +240,7 @@ export class UnsafeRefError extends TokenLensError<{ candidate: string }> {
  * PLAN.md P5.
  */
 export class ConfigError extends TokenLensError<{
-  reason: 'missing-env-var' | 'malformed-json';
+  reason: 'missing-env-var' | 'malformed-json' | 'experiment-integrity';
   variableName?: string;
   filePath?: string;
 }> {
@@ -251,7 +251,7 @@ export class ConfigError extends TokenLensError<{
   constructor(
     message: string,
     context: {
-      reason: 'missing-env-var' | 'malformed-json';
+      reason: 'missing-env-var' | 'malformed-json' | 'experiment-integrity';
       variableName?: string;
       filePath?: string;
     },

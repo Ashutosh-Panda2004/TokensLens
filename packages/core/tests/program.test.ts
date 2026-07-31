@@ -12,7 +12,7 @@ describe('createProgram', () => {
     expect(program.version()).toBe(VERSION);
   });
 
-  it('registers every roadmap command, plus the Phase D1–D6 commands that are no longer stubs', () => {
+  it('registers every roadmap command, plus the Phase D1–D9 commands that are no longer stubs', () => {
     const program = createProgram();
     const registered = program.commands.map((command) => command.name()).sort();
     const expected = [
@@ -29,11 +29,13 @@ describe('createProgram', () => {
       'outcomes',
       'hook',
       'mcp',
+      'holdout',
+      'org',
     ].sort();
     expect(registered).toEqual(expected);
   });
 
-  it('the Phase D1–D6 commands are real — they do not throw NotImplementedError', () => {
+  it('the Phase D1–D9 commands are real — they do not throw NotImplementedError', () => {
     const program = createProgram();
     const commandNames = program.commands.map((command) => command.name());
     for (const name of [
@@ -49,6 +51,8 @@ describe('createProgram', () => {
       'outcomes',
       'hook',
       'mcp',
+      'holdout',
+      'org',
     ]) {
       expect(commandNames).toContain(name);
     }
@@ -57,7 +61,7 @@ describe('createProgram', () => {
   /**
    * The roadmap list is empty as of D6 — every planned command has a real
    * implementation. The check is kept rather than deleted: the contract it
-   * enforces is what stopped `--help` and the plan drifting apart for six
+   * enforces is what stopped `--help` and the plan drifting apart for nine
    * phases, and it starts working again the moment a command is registered
    * ahead of being built.
    */

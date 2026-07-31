@@ -12,6 +12,8 @@ import { registerSimulateCommand } from './commands/simulate.js';
 import { registerPolicyCommand } from './commands/policy.js';
 import { registerOutcomesCommand } from './commands/outcomes.js';
 import { registerHookCommand, registerMcpCommand } from './commands/hook.js';
+import { registerHoldoutCommand } from './commands/holdout.js';
+import { registerOrgCommand } from './commands/org.js';
 
 /**
  * Builds the commander program from scratch on every call — no shared
@@ -59,6 +61,12 @@ export function createProgram(): Command {
   // Phase D6.
   registerHookCommand(program);
   registerMcpCommand(program);
+
+  // Phase D8.
+  registerHoldoutCommand(program);
+
+  // Phase D9.
+  registerOrgCommand(program);
 
   for (const roadmapCommand of ROADMAP_COMMANDS) {
     program
