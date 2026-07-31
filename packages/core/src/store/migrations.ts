@@ -116,4 +116,30 @@ export const MIGRATIONS: readonly string[] = [
   -- them, and re-ingestion is idempotent by design (D1.7).
   DELETE FROM ingested_file;
   `,
+
+  // v3 — the privacy rule: identifiers are hashed before they are stored.
+  //
+  // Session ids and journal paths were previously stored as they arrived.
+  // A raw journal path begins with the OS user's home directory, so it
+  // names a person; a raw session id is a stable handle to one developer's
+  // conversation. Ingest now hashes the former and strips the identifying
+  // prefix from the latter.
+  //
+  // Rows written before this point still contain the un-redacted values, so
+  // clearing the cache is not enough — the derived data itself has to go.
+  // Everything here is rebuilt from journals that are still on disk, so
+  // this destroys no information that cannot be regenerated, and leaving it
+  // in place would mean the privacy guarantee only applied to data ingested
+  // after the upgrade.
+  `
+  DELETE FROM content_reference;
+  DELETE FROM compaction;
+  DELETE FROM edit;
+  DELETE FROM tool_call;
+  DELETE FROM round;
+  DELETE FROM cost_centre;
+  DELETE FROM request;
+  DELETE FROM session;
+  DELETE FROM ingested_file;
+  `,
 ];

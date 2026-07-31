@@ -5,6 +5,18 @@ import { forecastBudget, type CopilotPlan } from '../ledger/budget.js';
 import { getRequestById } from '../store/database.js';
 import { buildMcpRoi, buildWasteReport } from '../waste/report.js';
 import { toBudgetView, toLedgerView } from './view-model.js';
+import type { PrivacyContext } from '../privacy/scope.js';
+
+/**
+ * The live dashboard is self-inspection: it binds to 127.0.0.1, requires a
+ * per-run token, and shows the machine's owner their own data. Withholding
+ * a developer's own sessions from them would protect nobody while removing
+ * the detail they need to act.
+ *
+ * The boundary that matters is what *leaves* the machine — and the
+ * exporters (`export.ts`) default to `shared`, where the restrictions bite.
+ */
+const LOCAL_DASHBOARD_PRIVACY: PrivacyContext = { scope: 'self', subjectCount: 1 };
 
 interface BudgetQuery {
   readonly plan?: string;
@@ -40,7 +52,7 @@ export function registerApiRoutes(app: FastifyInstance, db: Database.Database): 
   // Phase D2.7 / D2.8 — deferred from D2 because there was no waste data to
   // render until the attribution engine existed.
   app.get('/api/waste', (_request, reply: FastifyReply) => {
-    reply.send(buildWasteReport(db));
+    reply.send(buildWasteReport(db, LOCAL_DASHBOARD_PRIVACY));
   });
 
   app.get('/api/mcp-roi', (_request, reply: FastifyReply) => {

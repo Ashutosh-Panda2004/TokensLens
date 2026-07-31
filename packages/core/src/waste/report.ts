@@ -1,7 +1,61 @@
 import type Database from 'better-sqlite3';
 import { buildDetectContext } from './context.js';
 import { DETECTORS, UNAVAILABLE_CLASSES } from './registry.js';
-import type { UnavailableClass, WasteFinding } from './types.js';
+import { mayIncludeEntityList } from '../privacy/guard.js';
+import { shortId } from '../privacy/identifiers.js';
+import type { PrivacyContext } from '../privacy/scope.js';
+import type { Evidence, UnavailableClass, WasteFinding } from './types.js';
+
+/**
+ * A waste report describes one machine's data, so it defaults to the safe
+ * scope: per-request and per-session evidence is withheld unless the caller
+ * states that this is local self-inspection.
+ */
+const DEFAULT_REPORT_PRIVACY: PrivacyContext = { scope: 'shared', subjectCount: 1 };
+
+/** Evidence kinds whose `ref` names one specific request or session. */
+const INDIVIDUAL_KINDS = new Set<Evidence['kind']>(['request', 'session']);
+
+/**
+ * Removes evidence that points at a single request or session.
+ *
+ * The aggregate rows (`ref: 'ALL'`) carry the finding itself — *how much*
+ * and *how widespread* — and survive. What goes is the list of specific
+ * offenders, because "the ten most expensive sessions" is a ranking of
+ * individuals whether or not it is labelled with a name.
+ */
+function redactEvidence(finding: WasteFinding, privacy: PrivacyContext): WasteFinding {
+  if (mayIncludeEntityList(privacy)) {
+    // Even in self scope the session id is shown only in its hashed short
+    // form — the raw value no longer exists by this point.
+    return {
+      ...finding,
+      evidence: finding.evidence.map((item) =>
+        item.kind === 'session' ? { ...item, ref: shortId(item.ref) } : item,
+      ),
+    };
+  }
+
+  const kept = finding.evidence.filter((item) => !INDIVIDUAL_KINDS.has(item.kind));
+  const removed = finding.evidence.length - kept.length;
+
+  return {
+    ...finding,
+    evidence:
+      removed === 0
+        ? kept
+        : [
+            ...kept,
+            {
+              kind: 'tool',
+              ref: 'WITHHELD',
+              detail:
+                `${String(removed)} item(s) of per-request or per-session evidence withheld: ` +
+                'naming individual sessions in a shared report can identify a person by elimination',
+            },
+          ],
+  };
+}
 
 export interface WasteReport {
   /** Findings ranked by attributed credits, descending. */
@@ -26,6 +80,8 @@ export interface WasteReport {
    * levers multiplicatively rather than additively.
    */
   readonly overlapWarning: string | undefined;
+  /** Scope this report was built for, so a reader can tell what was withheld. */
+  readonly privacy: PrivacyContext;
 }
 
 /**
@@ -35,7 +91,10 @@ export interface WasteReport {
  * other six findings, so each runs independently and a thrown error becomes
  * a visible omission rather than a crashed report.
  */
-export function buildWasteReport(db: Database.Database): WasteReport {
+export function buildWasteReport(
+  db: Database.Database,
+  privacy: PrivacyContext = DEFAULT_REPORT_PRIVACY,
+): WasteReport {
   const ctx = buildDetectContext(db);
 
   const findings: WasteFinding[] = [];
@@ -43,7 +102,7 @@ export function buildWasteReport(db: Database.Database): WasteReport {
 
   for (const detector of DETECTORS) {
     try {
-      findings.push(...detector.detect(ctx));
+      findings.push(...detector.detect(ctx).map((finding) => redactEvidence(finding, privacy)));
     } catch (error) {
       failed.push({
         class: detector.class,
@@ -66,6 +125,7 @@ export function buildWasteReport(db: Database.Database): WasteReport {
     totalLedgerCredits,
     attributedCredits,
     attributedShare,
+    privacy,
     overlapWarning:
       attributedCredits > totalLedgerCredits
         ? 'Attributed credits exceed the ledger total because causes overlap — one request can be ' +

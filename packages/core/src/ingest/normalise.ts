@@ -2,6 +2,7 @@ import { SchemaDriftError } from '../shared/errors.js';
 import { logger } from '../shared/logger.js';
 import { asArray, asBoolean, asFiniteNumber, asRecord, asString } from '../shared/guards.js';
 import { hashPath } from './redact.js';
+import { hashIdentifier, toJournalRelativePath } from '../privacy/identifiers.js';
 import { measureResultChars } from './tool-results.js';
 import { extractToolCallTarget } from './tool-target.js';
 import type { ParsedJournal } from './reader.js';
@@ -61,13 +62,23 @@ export function normaliseJournal(parsed: ParsedJournal, salt: string): Normalise
   const records: TurnRecord[] = [];
   const driftErrors: SchemaDriftError[] = [];
 
+  // Neither identifier is stored as it arrived:
+  //  - the session id is only ever a grouping key, so the raw UUID is
+  //    hashed here and the original never reaches the database;
+  //  - the journal path is kept, but relative to `workspaceStorage`, which
+  //    drops the home-directory prefix (`C:\Users\<name>\...`). That keeps
+  //    `tokenlens verify` able to resolve the file locally while removing a
+  //    direct personal identifier from storage and from every report.
+  const hashedSessionId = hashIdentifier(sessionId, salt);
+  const relativeSourceFile = toJournalRelativePath(parsed.sourceFile);
+
   requests.forEach((raw, index) => {
     let record: TurnRecord | undefined;
     try {
       record = normaliseRequest(raw, {
         index,
-        sessionId,
-        sourceFile: parsed.sourceFile,
+        sessionId: hashedSessionId,
+        sourceFile: relativeSourceFile,
         offset: parsed.requestOffsets.get(index) ?? 0,
         salt,
       });

@@ -302,7 +302,7 @@ function renderSessions(ledger) {
       top.map((session, index) =>
         el('tr', {}, [
           el('td', {}, String(index + 1)),
-          el('td', {}, session.sessionId),
+          el('td', {}, session.sessionId.slice(0, 8)),
           el('td', { className: 'tl-num' }, [
             `${fmt(session.credits.value)} `,
             provenanceChip(session.credits),

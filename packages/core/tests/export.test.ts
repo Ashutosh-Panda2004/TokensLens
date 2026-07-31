@@ -118,10 +118,19 @@ describe('report export', () => {
         'Burn-down',
         'Cost-centre breakdown',
         'Model mix',
-        'Session leaderboard',
+        // Shared is the default scope for an export, so the ranked
+        // leaderboard is replaced by the aggregate concentration section.
+        'Session concentration',
       ]) {
         expect(html).toContain(heading);
       }
+    });
+
+    it('keeps the session leaderboard when the export is explicitly for oneself', () => {
+      const html = renderStaticHtmlReport(
+        buildExportData(db, 'enterprise', NOW, { scope: 'self', subjectCount: 1 }),
+      );
+      expect(html).toContain('Session leaderboard');
     });
 
     it('renders a provenance chip for every figure, and the legend that explains them', () => {
@@ -141,8 +150,9 @@ describe('report export', () => {
           requestId: 'r1',
           ts: Date.UTC(2026, 5, 1),
           credits: 1,
-          model: '<img src=x onerror="alert(1)">',
-          sessionId: '"><script>alert(2)</script>',
+          // Model names reach the report verbatim; session ids do not
+          // survive redaction, so they are no longer a useful probe here.
+          model: '<img src=x onerror="alert(1)"><script>alert(2)</script>',
         }),
       ]);
 

@@ -27,3 +27,6 @@ export * from './waste/context.js';
 export * from './waste/scoring.js';
 export * from './waste/registry.js';
 export * from './waste/report.js';
+export * from './privacy/scope.js';
+export * from './privacy/identifiers.js';
+export * from './privacy/guard.js';

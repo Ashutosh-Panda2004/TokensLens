@@ -12,6 +12,11 @@
  * `ingest/raw-types.ts` for the wire shapes this is derived from).
  */
 export interface TurnRecord {
+  /**
+   * **Salted hash** of the journal's session id, never the raw UUID. The
+   * original is discarded at ingest — nothing downstream needs it, since
+   * this value's only job is to group requests that belong together.
+   */
   readonly sessionId: string;
   readonly requestId: string;
   /** Epoch milliseconds. */
@@ -36,6 +41,15 @@ export interface TurnRecord {
 }
 
 export interface TurnRecordSource {
+  /**
+   * Journal path **relative to `workspaceStorage`**, e.g.
+   * `<workspace-id>/chatSessions/<session>.jsonl`. Deliberately not
+   * absolute: the absolute form begins with the OS user's home directory
+   * and so names a person. Both remaining components are opaque ids that
+   * VS Code generated, and joining this to the local journal root
+   * reconstructs the full path for `tokenlens verify` — so traceability
+   * (P2) survives without storing a personal identifier.
+   */
   readonly file: string;
   /** Byte offset (not character offset) of the JSONL line this record was built from. */
   readonly offset: number;

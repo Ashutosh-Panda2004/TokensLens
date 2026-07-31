@@ -3,7 +3,11 @@ import { openLedgerForReading } from '../context.js';
 import { buildMcpRoi, buildWasteReport } from '../../waste/report.js';
 import { printHeading, printJson, printLine, printTable } from '../output.js';
 import { isMeasured, isModelled } from '../../model/provenance.js';
+import type { PrivacyContext } from '../../privacy/scope.js';
 import type { WasteClass, WasteFinding } from '../../waste/types.js';
+
+/** `tokenlens waste` inspects your own machine's data — self scope. */
+const SELF: PrivacyContext = { scope: 'self', subjectCount: 1 };
 
 interface WasteCommandOptions {
   readonly json?: boolean;
@@ -50,7 +54,7 @@ export function registerWasteCommand(program: Command): void {
     .option('--explain <class>', 'print the full evidence chain for one class, e.g. W1')
     .action(async (options: WasteCommandOptions) => {
       const db = await openLedgerForReading();
-      const report = buildWasteReport(db);
+      const report = buildWasteReport(db, SELF);
 
       if (options.json) {
         printJson(report);

@@ -7,6 +7,7 @@ export type TokenLensErrorCode =
   | 'COVERAGE'
   | 'POLICY_CHANNEL'
   | 'PROVENANCE'
+  | 'PRIVACY'
   | 'UNSAFE_PATH'
   | 'UNSAFE_REF'
   | 'CONFIG'
@@ -143,6 +144,29 @@ export class ProvenanceError extends TokenLensError<{ kind: 'measured' | 'modell
     options?: TokenLensErrorOptions,
   ) {
     super(message, context, options);
+  }
+}
+
+/**
+ * Code attempted to produce a shared report that could expose an
+ * individual — either because too few developers contributed to hide any
+ * one of them, or because a per-entity listing survived into a shared
+ * artefact.
+ *
+ * This is the privacy counterpart of {@link ProvenanceError}, and it is
+ * deliberately raised *before* the report is generated rather than
+ * filtering afterwards: a post-hoc filter can be forgotten at one call
+ * site and leak silently, whereas a throw cannot be forgotten because no
+ * report comes out at all.
+ */
+export class PrivacyError extends TokenLensError<{ reason: string }> {
+  readonly code = 'PRIVACY' as const;
+
+  // Not a useless constructor: it narrows the public signature to a single
+  // message and derives `context` from it, so callers cannot forget to
+  // record why a report was refused.
+  constructor(message: string, options?: TokenLensErrorOptions) {
+    super(message, { reason: message }, options);
   }
 }
 

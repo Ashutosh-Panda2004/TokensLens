@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { parseJournalBuffer } from '../src/ingest/reader.js';
 import { normaliseJournal } from '../src/ingest/normalise.js';
+import { hashIdentifier, toJournalRelativePath } from '../src/privacy/identifiers.js';
 
 const FIXTURE_URL = new URL('./fixtures/sessions/golden-basic.jsonl', import.meta.url);
 const SALT = 'golden-test-salt';
@@ -29,7 +30,12 @@ describe('ingest golden fixture', () => {
     expect(record).toBeDefined();
     if (!record) return;
 
-    expect(record.sessionId).toBe('session-golden');
+    // The raw session id never survives ingest. Asserting the *property*
+    // rather than a literal hash keeps this test meaningful if the salt or
+    // hash length ever changes.
+    expect(record.sessionId).not.toBe('session-golden');
+    expect(record.sessionId).toMatch(/^[0-9a-f]{16}$/);
+    expect(record.sessionId).toBe(hashIdentifier('session-golden', SALT));
     expect(record.requestId).toBe('req-golden-1');
     expect(record.ts).toBe(1735689600000);
     expect(record.model).toBe('copilot/claude-sonnet-5');
@@ -42,7 +48,7 @@ describe('ingest golden fixture', () => {
     // three further patches); the source offset must point at the LAST
     // line that touched it (line 6: the kind=2 append to `.response`),
     // not the line that first created it.
-    expect(record.source.file).toBe(FIXTURE_URL.pathname);
+    expect(record.source.file).toBe(toJournalRelativePath(FIXTURE_URL.pathname));
     expect(record.source.offset).toBe(offsetOfLine(buffer, 6));
   });
 

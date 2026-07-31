@@ -36,7 +36,7 @@ export function registerVerifyCommand(program: Command): void {
       }
 
       printHeading(`TokenLens — verify ${requestId}`);
-      printLine(`session:       ${row.sessionId}`);
+      printLine(`session:       ${row.sessionId} (hashed)`);
       printLine(`model:         ${row.model}`);
       printLine(`prompt tokens: ${String(row.promptTokens)}`);
       printLine(`output tokens: ${String(row.outputTokens)}`);
@@ -47,7 +47,10 @@ export function registerVerifyCommand(program: Command): void {
             : '(not measured on this request — see the rate-card estimate in "tokenlens ledger")'
         }`,
       );
-      printLine(`source file:   ${row.sourceFile}`);
+      // Relative to the local workspaceStorage root — the absolute form
+      // starts with the OS user's home directory and so names a person.
+      // Join it to that root to open the file.
+      printLine(`source file:   <workspaceStorage>/${row.sourceFile}`);
       printLine(`byte offset:   ${String(row.sourceOffset)}`);
     });
 }

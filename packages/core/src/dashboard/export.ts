@@ -10,6 +10,9 @@ import {
   type ProvenanceView,
 } from './view-model.js';
 import type { Value } from '../model/provenance.js';
+import { assertReportSafe, mayIncludeEntityList, suppressionNotice } from '../privacy/guard.js';
+import { shortId } from '../privacy/identifiers.js';
+import type { PrivacyContext } from '../privacy/scope.js';
 
 export interface ExportData {
   readonly generatedAt: string;
@@ -17,18 +20,41 @@ export interface ExportData {
   readonly budget: BudgetView;
 }
 
+export interface ExportData {
+  readonly generatedAt: string;
+  readonly ledger: LedgerView;
+  readonly budget: BudgetView;
+  /** Scope this artefact was built for, so a reader can tell what was withheld. */
+  readonly privacy: PrivacyContext;
+}
+
+/**
+ * An exported file is the artefact most likely to be forwarded to someone
+ * other than its subject, so it defaults to `shared` — the safe scope.
+ * A caller wanting their own unredacted copy has to ask for it.
+ */
+const DEFAULT_EXPORT_PRIVACY: PrivacyContext = { scope: 'shared', subjectCount: 1 };
+
 /** Builds the same provenance-annotated view model the live dashboard and both exporters share. */
 export function buildExportData(
   db: Database.Database,
   plan: CopilotPlan = 'enterprise',
   now: Date = new Date(),
+  privacy: PrivacyContext = DEFAULT_EXPORT_PRIVACY,
 ): ExportData {
   const summary = buildLedger(db);
   const forecast = forecastBudget(summary, plan, now);
+
+  const ledger = toLedgerView(summary);
+
   return {
     generatedAt: now.toISOString(),
-    ledger: toLedgerView(summary),
+    // A per-session breakdown is the sharpest re-identification tool in the
+    // report, so it is dropped from the data itself rather than merely
+    // hidden at render time — a JSON export has no render step.
+    ledger: mayIncludeEntityList(privacy) ? ledger : { ...ledger, bySession: [] },
     budget: toBudgetView(forecast, summary, now),
+    privacy,
   };
 }
 
@@ -38,8 +64,12 @@ export async function exportJson(
   filePath: string,
   plan?: CopilotPlan,
   now?: Date,
+  privacy: PrivacyContext = DEFAULT_EXPORT_PRIVACY,
 ): Promise<void> {
-  const data = buildExportData(db, plan, now);
+  const data = buildExportData(db, plan, now, privacy);
+  // Runs on the finished artefact, immediately before it is written. Any
+  // field that would identify someone stops the write entirely.
+  assertReportSafe(data, privacy);
   await writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
 }
 
@@ -53,8 +83,10 @@ export async function exportHtml(
   filePath: string,
   plan?: CopilotPlan,
   now?: Date,
+  privacy: PrivacyContext = DEFAULT_EXPORT_PRIVACY,
 ): Promise<void> {
-  const data = buildExportData(db, plan, now);
+  const data = buildExportData(db, plan, now, privacy);
+  assertReportSafe(data, privacy);
   await writeFile(filePath, renderStaticHtmlReport(data), 'utf8');
 }
 
@@ -193,7 +225,17 @@ function renderModelMixSection(ledger: LedgerView): string {
     </section>`;
 }
 
-function renderSessionsSection(ledger: LedgerView): string {
+function renderSessionsSection(ledger: LedgerView, privacy: PrivacyContext): string {
+  // In a shared artefact the ranking is withheld and *said* to be withheld,
+  // so the omission reads as a deliberate choice rather than missing data.
+  if (!mayIncludeEntityList(privacy)) {
+    return `
+    <section class="card">
+      <h2>Session concentration</h2>
+      <p class="note">${escapeHtml(suppressionNotice())}</p>
+    </section>`;
+  }
+
   const top = ledger.bySession.slice(0, 10);
   const maxCredits = Math.max(1, ...top.map((s) => s.credits.value));
   const rows = top
@@ -201,7 +243,7 @@ function renderSessionsSection(ledger: LedgerView): string {
       (session, index) => `
       <tr>
         <td>${String(index + 1)}</td>
-        <td>${escapeHtml(session.sessionId)}</td>
+        <td>${escapeHtml(shortId(session.sessionId))}</td>
         <td class="num">${fmt(session.credits.value)} ${chipHtml(session.credits)}</td>
         <td class="num">${String(session.requestCount)}</td>
         <td><div class="bar-track"><div class="bar-fill" style="width:${String((session.credits.value / maxCredits) * 100)}%"></div></div></td>
@@ -273,7 +315,7 @@ ${renderTotalsSection(data.ledger)}
 ${renderBurnDownSection(data.ledger, data.budget)}
 ${renderCostCentresSection(data.ledger)}
 ${renderModelMixSection(data.ledger)}
-${renderSessionsSection(data.ledger)}
+${renderSessionsSection(data.ledger, data.privacy)}
 </main>
 <footer>
   <p><span class="chip chip-measured">measured</span> read directly from a field VS Code wrote to disk. &middot;
