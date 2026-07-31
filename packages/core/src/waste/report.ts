@@ -194,8 +194,12 @@ export function buildMcpRoi(db: Database.Database): McpServerRoi[] {
  * MCP tools are conventionally namespaced (`server_tool`, `server/tool`,
  * `mcp_server_tool`). Built-in editor tools have no separator and are
  * grouped under a single bucket so they do not masquerade as servers.
+ *
+ * Exported because `simulate`'s tool-trim lever resolves `tools.allow_mcp`
+ * through the same grouping. If the two disagreed, a server the ROI table
+ * called unused would not be the server the simulator removed.
  */
-function serverOf(toolName: string): string {
+export function serverOf(toolName: string): string {
   if (toolName.startsWith('mcp_')) {
     const rest = toolName.slice(4);
     return `mcp:${rest.split('_')[0] ?? rest}`;

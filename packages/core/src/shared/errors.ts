@@ -6,6 +6,7 @@ export type TokenLensErrorCode =
   | 'SCHEMA_DRIFT'
   | 'COVERAGE'
   | 'POLICY_CHANNEL'
+  | 'POLICY_SYNTAX'
   | 'PROVENANCE'
   | 'PRIVACY'
   | 'UNSAFE_PATH'
@@ -167,6 +168,36 @@ export class PrivacyError extends TokenLensError<{ reason: string }> {
   // record why a report was refused.
   constructor(message: string, options?: TokenLensErrorOptions) {
     super(message, { reason: message }, options);
+  }
+}
+
+/**
+ * A user-authored `.tokenlens/policy.yml` could not be understood: it is
+ * not valid YAML, or it contains a key or value TokenLens does not
+ * recognise.
+ *
+ * Unknown keys are an **error rather than a warning** on purpose. A
+ * mistyped `max_results_tokens` that is silently ignored produces a
+ * simulation reporting zero saving, and the user concludes the lever does
+ * not work — a wrong answer delivered confidently. Refusing to run is the
+ * only outcome that cannot be misread.
+ */
+export class PolicySyntaxError extends TokenLensError<{
+  /** Dotted path to the offending key, e.g. `payload.max_result_tokens`. */
+  at: string;
+  problem: string;
+  filePath?: string;
+}> {
+  readonly code = 'POLICY_SYNTAX' as const;
+
+  // See the comment on SchemaDriftError's constructor above.
+  // eslint-disable-next-line @typescript-eslint/no-useless-constructor
+  constructor(
+    message: string,
+    context: { at: string; problem: string; filePath?: string },
+    options?: TokenLensErrorOptions,
+  ) {
+    super(message, context, options);
   }
 }
 

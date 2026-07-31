@@ -1,5 +1,6 @@
 import { modelled } from '../../model/provenance.js';
-import { groupBy, sampleConfidence, withEffectSize } from '../scoring.js';
+import { sampleConfidence, withEffectSize } from '../scoring.js';
+import { LOW_COMPLEXITY_PERCENTILE, scoreComplexity } from '../complexity.js';
 import { findRate } from '../../ledger/rate-card.js';
 import type { DetectContext, Evidence, WasteDetector, WasteFinding } from '../types.js';
 
@@ -48,7 +49,7 @@ export class ModelOverSelectionDetector implements WasteDetector {
       rate.creditsPerKPromptToken < min.creditsPerKPromptToken ? rate : min,
     );
 
-    const complexityByRequest = this.scoreComplexity(ctx);
+    const complexityByRequest = scoreComplexity(ctx);
     const scores = [...complexityByRequest.values()].sort((a, b) => a - b);
     if (scores.length < MIN_SAMPLE) return [];
 
@@ -139,40 +140,11 @@ export class ModelOverSelectionDetector implements WasteDetector {
       },
     ];
   }
-
-  /**
-   * Observable difficulty of each request. Deliberately crude and
-   * transparent — every input is a count that can be checked, and no
-   * component is weighted by anything cleverer than "more of this means
-   * harder".
-   */
-  private scoreComplexity(ctx: DetectContext): Map<string, number> {
-    const roundsByRequest = groupBy(ctx.rounds, (round) => round.requestId);
-    const callsByRequest = groupBy(ctx.toolCalls, (call) => call.requestId);
-    const editsByRequest = groupBy(ctx.edits, (edit) => edit.requestId);
-
-    const scores = new Map<string, number>();
-    for (const request of ctx.requests) {
-      const rounds = roundsByRequest.get(request.requestId) ?? [];
-      const calls = callsByRequest.get(request.requestId) ?? [];
-      const edits = editsByRequest.get(request.requestId) ?? [];
-      const thinking = rounds.reduce((sum, r) => sum + (r.thinkingTokens ?? 0), 0);
-
-      scores.set(
-        request.requestId,
-        rounds.length * 2 +
-          calls.length +
-          edits.reduce((sum, e) => sum + e.editCount, 0) * 3 +
-          thinking / 500 +
-          request.outputTokens / 500,
-      );
-    }
-    return scores;
-  }
 }
 
 /** A model must cost at least this multiple of the cheapest measured rate to be worth flagging. */
 const PREMIUM_MULTIPLE_THRESHOLD = 3;
-const SIMPLE_PERCENTILE = 0.33;
+/** Shared with `tokenlens simulate`, so the two commands cannot disagree about what "simple" means. */
+const SIMPLE_PERCENTILE = LOW_COMPLEXITY_PERCENTILE;
 const MIN_SAMPLE = 20;
 const MAX_LISTED = 8;
