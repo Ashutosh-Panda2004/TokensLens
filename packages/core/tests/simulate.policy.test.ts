@@ -106,8 +106,12 @@ retrieval:
    * cannot cost, because P7 hashes retrieval paths at ingest. Accepting it
    * and stating the omission is the only option that neither blocks the
    * user from writing a complete policy nor implies the line was priced.
+   *
+   * The value is still carried into the policy: **not priced is not the
+   * same as not deployable**, and D5 emits these lines whether or not D4
+   * could put a number on them.
    */
-  it('accepts recognised keys it cannot cost, and records why', () => {
+  it('accepts recognised keys it cannot cost, records why, and still carries the value', () => {
     const { policy, notSimulated } = parsePolicy(`
 version: 1
 retrieval:
@@ -118,7 +122,9 @@ payload:
   max_result_tokens: 4000
 `);
 
-    expect(policy.retrieval).toEqual({ dedupeReads: true });
+    expect(policy.retrieval).toEqual({ dedupeReads: true, exclude: ['**/dist/**'] });
+    expect(policy.payload).toEqual({ maxResultTokens: 4000, compressTerminalOutput: true });
+
     expect(notSimulated.map((entry) => entry.at).sort()).toEqual([
       'payload.compress_terminal_output',
       'retrieval.exclude',

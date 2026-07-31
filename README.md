@@ -9,9 +9,10 @@ fleet-wide, with no developer action required. It grew out of a companion strate
 (`PLAN.md`) covering the research and business case; this repository is the build.
 
 **Build plan:** [`DEVELOPMENT-PLAN.md`](DEVELOPMENT-PLAN.md) — ten phases, D0 through D9.
-**Current status:** Phases **D0–D4 complete**, plus the privacy rule (P7) enforced across all of
-them. The measurement spine is finished: ledger, dashboard, waste attribution and simulation.
-Next is **D5 · Policy compiler**, where advisory becomes enforcement.
+**Current status:** Phases **D0–D5 complete**, plus the privacy rule (P7) enforced across all of
+them. The measurement spine is finished and advisory has become enforcement: ledger, dashboard,
+waste attribution, simulation, and a policy compiler that emits the artefact an MDM team deploys.
+Next is **D6 · Runtime guards**, where interception happens per request.
 
 ## What this is (and isn't)
 
@@ -51,6 +52,7 @@ TokenLens/
 │  │  │  ├─ ledger/           # credits, cost centres, rate card, budget
 │  │  │  ├─ waste/            # W1..W14 detectors, one file each
 │  │  │  ├─ simulate/         # replay engine, policy DSL, levers, ceiling guard
+│  │  │  ├─ policy/           # channel detection + emitters + rollback
 │  │  │  ├─ privacy/          # scope, identifier hashing, the report gate
 │  │  │  ├─ dashboard/        # fastify + static SPA
 │  │  │  ├─ shared/           # logger, config, io, errors, security baseline
@@ -73,6 +75,10 @@ tokenlens waste --explain W1  # the full evidence chain behind one cause
 tokenlens mcp-roi             # per-server invocation ROI
 tokenlens simulate --all      # replay history under a derived policy and price it
 tokenlens simulate --emit-policy > .tokenlens/policy.yml
+tokenlens policy detect       # which managed-settings channel wins on this machine?
+tokenlens policy emit --dry-run   # the diff, with the credits each line saves
+tokenlens policy emit --out ./out # .reg / .mobileconfig / settings.json / .agent.md + rollbacks
+tokenlens policy verify       # did the deploy actually take effect?
 ```
 
 ## What's implemented
@@ -89,6 +95,7 @@ tokenlens simulate --emit-policy > .tokenlens/policy.yml
 | D2 | Local dashboard (Fastify + vanilla SPA) and JSON/HTML export | `src/dashboard/` |
 | D3 | Seven waste detectors; seven more declared undetectable **with stated blockers** | `src/waste/` |
 | D4 | Counterfactual replay engine, policy DSL, six levers, contract-ceiling guard | `src/simulate/` |
+| D5 | Channel detection, emitters for MDM / macOS / file-based / workspace / `.agent.md`, rollbacks | `src/policy/` |
 | P7 | Privacy enforcement — salted-hash identifiers, k-anonymity floor, a gate that throws before a report is written | `src/privacy/` |
 
 Everything above is deterministic: zero network calls, zero model calls, zero telemetry egress.

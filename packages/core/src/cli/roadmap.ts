@@ -9,15 +9,10 @@ export interface RoadmapCommand {
   readonly name: string;
   readonly summary: string;
   /** Development phase (DEVELOPMENT-PLAN.md §2) that ships this command. */
-  readonly phase: 'D5' | 'D6';
+  readonly phase: 'D6';
 }
 
 export const ROADMAP_COMMANDS: readonly RoadmapCommand[] = [
-  {
-    name: 'policy',
-    summary: 'Detect the active settings channel and emit a policy artefact.',
-    phase: 'D5',
-  },
   {
     name: 'hook',
     summary: 'Runtime hook entry point invoked by the Copilot agent.',

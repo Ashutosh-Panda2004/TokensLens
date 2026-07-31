@@ -213,17 +213,83 @@ export function recommendPolicy(ctx: DetectContext): Policy {
     ...(cheapest
       ? { model: { route: [{ when: { complexity: 'low' as const }, to: cheapest.model }] } }
       : {}),
-    // Always present, even when empty. An omitted lever reads as "not
-    // considered"; an empty one reads as "considered, and nothing here
-    // qualified" — which is the true statement and the more useful one.
-    tools: { deny: surface.remove },
-    ...(payloadCapTokens !== undefined ? { payload: { maxResultTokens: payloadCapTokens } } : {}),
+    tools: {
+      // Always present, even when empty. An omitted lever reads as "not
+      // considered"; an empty one reads as "considered, and nothing here
+      // qualified" — which is the true statement and the more useful one.
+      deny: surface.remove,
+      ...optional('virtualToolsThreshold', solveVirtualToolThreshold(ctx)),
+    },
+    payload: {
+      ...optional('maxResultTokens', payloadCapTokens),
+      ...optional('compressTerminalOutput', recommendOutputCompression(ctx)),
+    },
     session: {
       nudgeAfterTurns: NUDGE_AFTER_TURNS,
-      ...(loopCap !== undefined ? { maxRounds: loopCap } : {}),
+      ...optional('maxRounds', loopCap),
     },
     retrieval: { dedupeReads: true },
   };
+}
+
+/**
+ * The tool count above which VS Code groups tools and expands them on
+ * demand (AUTO-5). Lowering it cuts the tool-definition tax directly.
+ *
+ * The threshold is set at the **95th percentile of distinct tools actually
+ * used in a single request**. Above that point, grouping cannot break
+ * observed behaviour, because no recorded request needed more tools than
+ * that at once. Below it, some request that did work would have paid an
+ * expansion round-trip — which is a real cost this does not measure, and is
+ * the reason for choosing a percentile rather than the median.
+ *
+ * Returns nothing when tool definitions are not a material share of the
+ * prompt: a setting that attacks waste this corpus does not have is churn.
+ */
+export function solveVirtualToolThreshold(ctx: DetectContext): number | undefined {
+  if (toolDefinitionShare(ctx) < MATERIAL_SHARE) return undefined;
+
+  const perRequest = [...groupBy(ctx.toolCalls, (call) => call.requestId).values()]
+    .map((calls) => new Set(calls.map((call) => call.name)).size)
+    .sort((a, b) => a - b);
+  if (perRequest.length < MIN_SAMPLE) return undefined;
+
+  return Math.max(MIN_VIRTUAL_TOOL_THRESHOLD, Math.round(quantile(perRequest, 0.95)));
+}
+
+/**
+ * `chat.tools.compressOutput.enabled` ships disabled and costs nothing to
+ * turn on (PLAN.md §18.5). It is recommended only when this corpus actually
+ * contains the waste it attacks — an oversized tool result — because
+ * recommending a setting on the strength of documentation rather than
+ * measurement is how a report full of unfalsifiable advice starts.
+ *
+ * Its saving is deliberately not estimated. The compression ratio is a
+ * property of the compressor, which does not run here.
+ */
+export function recommendOutputCompression(ctx: DetectContext): boolean | undefined {
+  const oversized = ctx.toolCalls.some(
+    (call) => call.resultChars !== null && call.resultChars > OVERSIZED_RESULT_CHARS,
+  );
+  return oversized ? true : undefined;
+}
+
+function toolDefinitionShare(ctx: DetectContext): number {
+  const total = ctx.costCentres.reduce((sum, centre) => sum + centre.tokens, 0);
+  if (total <= 0) return 0;
+  const toolDefs = ctx.costCentres
+    .filter((centre) => centre.label === 'Tool Definitions')
+    .reduce((sum, centre) => sum + centre.tokens, 0);
+  return toolDefs / total;
+}
+
+/**
+ * Spreads a key only when its value is defined, so an unrecommended setting
+ * stays genuinely absent from the policy rather than present and undefined —
+ * which the YAML serialiser would render as an empty line.
+ */
+function optional<K extends string, V>(key: K, value: V | undefined): Partial<Record<K, V>> {
+  return value === undefined ? {} : ({ [key]: value } as Record<K, V>);
 }
 
 /** Cap the top 5% of results, leaving the other 95% untouched. */
@@ -232,6 +298,11 @@ const MIN_PAYLOAD_CAP_TOKENS = 1000;
 /** A cap must catch mostly loops that produced nothing, or it is destroying work. */
 const MIN_UNPRODUCTIVE_SHARE = 0.5;
 const MIN_LOOP_CAP = 10;
+/** Below this share of decomposed prompt tokens, the tool-definition tax is not worth a setting. */
+const MATERIAL_SHARE = 0.05;
+const MIN_VIRTUAL_TOOL_THRESHOLD = 8;
+/** Matches W3's absolute floor — below this, a result is never worth calling oversized. */
+const OVERSIZED_RESULT_CHARS = 16_000;
 /** PLAN.md F5 — the measured onset of the accumulated-history penalty. Not derived from this corpus. */
 const NUDGE_AFTER_TURNS = 8;
 const MIN_SAMPLE = 20;

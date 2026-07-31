@@ -54,8 +54,8 @@ export interface SavingBand {
 }
 
 /**
- * One request's counterfactual, expressed as multipliers on what it
- * actually cost rather than as a re-priced total.
+ * The counterfactual is expressed as **multipliers on what a request
+ * actually cost**, never as a re-priced total.
  *
  * ## Why multipliers, and not simply re-costing the request
  *
@@ -72,12 +72,8 @@ export interface SavingBand {
  * Multipliers make that impossible. An untouched request keeps a scale of
  * exactly 1, so its counterfactual is bit-identical to its baseline and its
  * contribution to the delta is exactly zero, whatever its provenance.
- * `replay.nullpolicy.test.ts` exists to hold that property.
+ * `simulate.replay.test.ts` exists to hold that property.
  */
-interface RequestScale {
-  tokens: number;
-  rate: number;
-}
 
 /**
  * The mutable counterfactual state a set of levers is applied to.
@@ -95,7 +91,7 @@ interface RequestScale {
  * only as a cross-check.
  */
 export class Counterfactual {
-  private readonly scales = new Map<string, RequestScale>();
+  private readonly scales = new Map<string, number>();
   private readonly touched = new Set<string>();
 
   constructor(
@@ -103,30 +99,30 @@ export class Counterfactual {
     private readonly band: RealisationBand,
   ) {}
 
-  /** Multiplies a request's prompt cost by `rawScale` (1 = no change, 0 = eliminated). */
-  scaleTokens(requestId: string, rawScale: number, tier: RemediationTier): void {
-    this.apply(requestId, rawScale, tier, 'tokens');
-  }
-
-  /** Multiplies a request's per-token rate, e.g. when routing it to a different model. */
-  scaleRate(requestId: string, rawScale: number, tier: RemediationTier): void {
-    this.apply(requestId, rawScale, tier, 'rate');
-  }
-
-  private apply(
-    requestId: string,
-    rawScale: number,
-    tier: RemediationTier,
-    field: keyof RequestScale,
-  ): void {
+  /**
+   * Applies one lever's **net** effect on one request.
+   *
+   * Net is the important word, and it was a defect before it was a
+   * decision. Model routing changes two things at once: the rate falls
+   * because the model is cheaper, and the effort rises by the regret
+   * measured for that model. Damping those two separately — the rate
+   * towards 1 and the regret towards 1, each by the realisation rate —
+   * produces a combined multiplier that can exceed 1 even when the lever is
+   * plainly beneficial at full adoption. A 20× rate saving turned into a
+   * reported *cost increase* at 70% realisation, which is arithmetic
+   * nobody could defend.
+   *
+   * A realisation rate means "this lever lands on this fraction of the
+   * work". The whole change lands or none of it does, so the whole change
+   * is what gets damped.
+   */
+  scale(requestId: string, rawScale: number, tier: RemediationTier): void {
     if (!Number.isFinite(rawScale) || rawScale < 0) return;
     if (rawScale === 1) return;
 
     this.touched.add(requestId);
     const damped = damp(rawScale, realisationFor(tier, this.band));
-    const current = this.scales.get(requestId) ?? { tokens: 1, rate: 1 };
-    current[field] *= damped;
-    this.scales.set(requestId, current);
+    this.scales.set(requestId, (this.scales.get(requestId) ?? 1) * damped);
   }
 
   /** How many requests any lever changed. Band-independent: it counts intent, not degree. */
@@ -157,8 +153,8 @@ export class Counterfactual {
     for (const request of this.ctx.requests) {
       const baseline = this.ctx.creditsByRequest.get(request.requestId) ?? 0;
       const scale = this.scales.get(request.requestId);
-      if (!scale) continue;
-      saved += baseline - baseline * scale.tokens * scale.rate;
+      if (scale === undefined) continue;
+      saved += baseline - baseline * scale;
     }
     return saved;
   }

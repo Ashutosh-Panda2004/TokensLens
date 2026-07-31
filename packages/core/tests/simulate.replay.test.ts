@@ -4,13 +4,19 @@ import { openDatabase, saveTurnRecords } from '../src/store/database.js';
 import { buildDetectContext } from '../src/waste/context.js';
 import { buildLedger } from '../src/ledger/ledger.js';
 import { scanDuplicateReads } from '../src/waste/duplicate-reads.js';
+import { groupBy } from '../src/waste/scoring.js';
 import {
   buildNullSimulation,
   buildSimulation,
   type SimulationReport,
 } from '../src/simulate/report.js';
 import { parsePolicy } from '../src/simulate/policy.js';
-import { recommendPolicy, solveLoopCap, solveToolSurface } from '../src/simulate/optimiser.js';
+import {
+  recommendPolicy,
+  solveLoopCap,
+  solveToolSurface,
+  solveVirtualToolThreshold,
+} from '../src/simulate/optimiser.js';
 import type { Policy } from '../src/simulate/policy.js';
 import type { ToolCallRound } from '../src/model/turn-record.js';
 
@@ -262,6 +268,66 @@ describe('tool-surface optimiser', () => {
     expect(policy.payload?.maxResultTokens).toBeGreaterThan(0);
     expect(policy.retrieval?.dedupeReads).toBe(true);
   });
+
+  /**
+   * Routing *all* work to the cheapest model is exactly what the simulator
+   * warns against — it is where a routing policy does damage rather than
+   * saving money. The recommendation is a rule scoped to low-complexity
+   * work, and the fleet default is deliberately left alone.
+   */
+  it('recommends a routing rule, never a blanket fleet default', () => {
+    const policy = recommendPolicy(buildDetectContext(buildSimulationCorpus()));
+
+    expect(policy.model?.route).toHaveLength(1);
+    expect(policy.model?.default).toBeUndefined();
+  });
+
+  /**
+   * `chat.tools.compressOutput.enabled` ships off and costs nothing to turn
+   * on. Recommending it on the strength of documentation alone would be
+   * unfalsifiable advice, so it is recommended only where this corpus
+   * actually contains an oversized result.
+   */
+  it('recommends the free settings only where the waste they attack is present', () => {
+    const withWaste = recommendPolicy(buildDetectContext(buildSimulationCorpus()));
+    expect(withWaste.payload?.compressTerminalOutput).toBe(true);
+    expect(withWaste.tools?.virtualToolsThreshold).toBeGreaterThanOrEqual(8);
+
+    const db = openDatabase(':memory:');
+    saveTurnRecords(db, [
+      record({
+        requestId: 'tiny',
+        ts: 1,
+        credits: 1,
+        costCentres: [],
+        rounds: [
+          {
+            id: 'r',
+            ts: 1,
+            retries: 0,
+            toolCalls: [{ id: 'c', name: 'read_file', resultChars: 40 }],
+          },
+        ],
+      }),
+    ]);
+    const withoutWaste = recommendPolicy(buildDetectContext(db));
+    expect(withoutWaste.payload?.compressTerminalOutput).toBeUndefined();
+    expect(withoutWaste.tools?.virtualToolsThreshold).toBeUndefined();
+  });
+
+  it('sets the virtual-tool threshold above what any request actually needed at once', () => {
+    const ctx = buildDetectContext(buildSimulationCorpus());
+    const threshold = solveVirtualToolThreshold(ctx);
+    const maxDistinctPerRequest = Math.max(
+      ...[...groupBy(ctx.toolCalls, (call) => call.requestId).values()].map(
+        (calls) => new Set(calls.map((call) => call.name)).size,
+      ),
+    );
+
+    // At or above the observed ceiling, grouping cannot break behaviour the
+    // corpus recorded.
+    expect(threshold).toBeLessThanOrEqual(Math.max(8, maxDistinctPerRequest));
+  });
 });
 
 /**
@@ -397,5 +463,29 @@ describe('defects the first live run exposed', () => {
     const scan = scanDuplicateReads(buildDetectContext(db));
     expect(scan.duplicates.map((entry) => entry.requestId)).toEqual(['r4']);
     expect(scan.refreshedAfterEdit).toBe(1);
+  });
+
+  /**
+   * Found while wiring D5. Model routing changes two things at once: the
+   * rate falls because the model is cheaper, and effort rises by the
+   * measured regret. Damping those two *separately* towards "no change"
+   * turned a 20×-cheaper rate into a reported **cost increase** at 70%
+   * realisation — the benefit was damped while the regret was not, in
+   * proportion.
+   *
+   * A realisation rate means "this lever lands on this fraction of the
+   * work". The whole change lands or none of it does.
+   */
+  it('damps a lever\u2019s net effect, so its own regret cannot outrun its benefit', () => {
+    const db = buildSimulationCorpus();
+    const report = simulate(db, parsePolicy('version: 1\nmodel:\n  default: model-cheap\n').policy);
+
+    const routing = report.levers.find((lever) => lever.id === 'model-routing');
+    expect(routing?.credits.theoretical).toBeGreaterThan(0);
+    // The partial-adoption figures must sit between "nothing happened" and
+    // "everything happened", never outside that interval.
+    expect(routing?.credits.low).toBeGreaterThan(0);
+    expect(routing?.credits.low).toBeLessThan(routing?.credits.high ?? 0);
+    expect(routing?.credits.high).toBeLessThanOrEqual(routing?.credits.theoretical ?? 0);
   });
 });

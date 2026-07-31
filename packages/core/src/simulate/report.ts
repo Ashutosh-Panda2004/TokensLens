@@ -209,12 +209,11 @@ function replayAt(
   const counterfactual = new Counterfactual(ctx, band);
   for (const { lever, plan } of planned) {
     for (const change of plan.changes) {
-      if (change.tokenScale !== undefined) {
-        counterfactual.scaleTokens(change.requestId, change.tokenScale, lever.tier);
-      }
-      if (change.rateScale !== undefined) {
-        counterfactual.scaleRate(change.requestId, change.rateScale, lever.tier);
-      }
+      // A lever's token effect and rate effect are combined *before* the
+      // realisation rate is applied. Damping them separately lets a lever's
+      // internal cost outrun its own benefit — see `Counterfactual.scale`.
+      const net = (change.tokenScale ?? 1) * (change.rateScale ?? 1);
+      counterfactual.scale(change.requestId, net, lever.tier);
     }
   }
   return counterfactual.savedCredits;

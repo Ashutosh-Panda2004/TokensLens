@@ -47,6 +47,8 @@ export interface ModelPolicy {
    */
   readonly default?: string;
   readonly route?: readonly RouteRule[];
+  /** Model for background flows — titles, summaries, commit messages, intent detection. */
+  readonly utility?: string;
 }
 
 /** Observable difficulty band, derived from the corpus's own distribution. */
@@ -71,11 +73,17 @@ export interface ToolPolicy {
   readonly allowMcp?: readonly string[];
   /** Individual tool names to remove. `prefix*` matches by prefix. */
   readonly deny?: readonly string[];
+  /** Tool count above which VS Code groups tools and activates them on demand. */
+  readonly virtualToolsThreshold?: number;
+  /** Whether extension-contributed tool schemas are sent at all. */
+  readonly extensionTools?: boolean;
 }
 
 export interface PayloadPolicy {
   /** Tool results are truncated to this many tokens. */
   readonly maxResultTokens?: number;
+  /** Collapse unchanged diff hunks, drop lockfile diffs, strip install progress. */
+  readonly compressTerminalOutput?: boolean;
 }
 
 export interface SessionPolicy {
@@ -88,14 +96,21 @@ export interface SessionPolicy {
 export interface RetrievalPolicy {
   /** Re-reads of content already in context are served from it, not re-fetched. */
   readonly dedupeReads?: boolean;
+  /** Globs excluded from search, so snippet tokens are never billed for them. */
+  readonly exclude?: readonly string[];
 }
 
 /** The empty policy: changes nothing, and must therefore save exactly zero. */
 export const NULL_POLICY: Policy = { version: 1 };
 
 /**
- * A key that is part of the DSL, was present in the file, and could not be
- * costed — with the reason, and what would have to change.
+ * A key that is part of the DSL, was present in the file, and **could not be
+ * priced** — with the reason, and what would have to change.
+ *
+ * Not priced is not the same as not deployable. Every key listed here is
+ * still carried into {@link Policy} and still emitted by `tokenlens policy`;
+ * what is missing is a credit figure, and the report says so rather than
+ * printing a zero that would read as "this does not help".
  */
 export interface NotSimulated {
   readonly at: string;
@@ -233,6 +248,10 @@ function parseModel(
       node.default === undefined ? undefined : expectString(node.default, 'model.default', options),
     ),
     ...optional('route', rules),
+    ...optional(
+      'utility',
+      node.utility === undefined ? undefined : expectString(node.utility, 'model.utility', options),
+    ),
   };
   return Object.keys(result).length > 0 ? result : undefined;
 }
@@ -313,6 +332,22 @@ function parseTools(
       'deny',
       node.deny === undefined ? undefined : expectStringArray(node.deny, 'tools.deny', options),
     ),
+    ...optional(
+      'virtualToolsThreshold',
+      node.virtual_tools_threshold === undefined
+        ? undefined
+        : expectPositiveInteger(
+            node.virtual_tools_threshold,
+            'tools.virtual_tools_threshold',
+            options,
+          ),
+    ),
+    ...optional(
+      'extensionTools',
+      node.extension_tools === undefined
+        ? undefined
+        : expectBoolean(node.extension_tools, 'tools.extension_tools', options),
+    ),
   };
   return Object.keys(result).length > 0 ? result : undefined;
 }
@@ -333,9 +368,21 @@ function parsePayload(
     notSimulated,
   );
 
-  const max = node.max_result_tokens;
-  if (max === undefined) return undefined;
-  return { maxResultTokens: expectPositiveInteger(max, 'payload.max_result_tokens', options) };
+  const result: PayloadPolicy = {
+    ...optional(
+      'maxResultTokens',
+      node.max_result_tokens === undefined
+        ? undefined
+        : expectPositiveInteger(node.max_result_tokens, 'payload.max_result_tokens', options),
+    ),
+    ...optional(
+      'compressTerminalOutput',
+      node.compress_terminal_output === undefined
+        ? undefined
+        : expectBoolean(node.compress_terminal_output, 'payload.compress_terminal_output', options),
+    ),
+  };
+  return Object.keys(result).length > 0 ? result : undefined;
 }
 
 function parseSession(value: unknown, options: ParsePolicyOptions): SessionPolicy | undefined {
@@ -370,9 +417,21 @@ function parseRetrieval(
   requireKnownKeys(node, 'retrieval', ['exclude', 'dedupe_reads'], options);
   noteUnsimulable(node, 'retrieval', 'exclude', 'retrieval.exclude', notSimulated);
 
-  const dedupe = node.dedupe_reads;
-  if (dedupe === undefined) return undefined;
-  return { dedupeReads: expectBoolean(dedupe, 'retrieval.dedupe_reads', options) };
+  const result: RetrievalPolicy = {
+    ...optional(
+      'dedupeReads',
+      node.dedupe_reads === undefined
+        ? undefined
+        : expectBoolean(node.dedupe_reads, 'retrieval.dedupe_reads', options),
+    ),
+    ...optional(
+      'exclude',
+      node.exclude === undefined
+        ? undefined
+        : expectStringArray(node.exclude, 'retrieval.exclude', options),
+    ),
+  };
+  return Object.keys(result).length > 0 ? result : undefined;
 }
 
 /**
@@ -435,16 +494,22 @@ export function stringifyPolicy(policy: Policy): string {
           to: rule.to,
         })),
       ),
+      ...optional('utility', policy.model.utility),
     };
   }
   if (policy.tools) {
     document.tools = {
       ...optional('allow_mcp', policy.tools.allowMcp),
       ...optional('deny', policy.tools.deny),
+      ...optional('virtual_tools_threshold', policy.tools.virtualToolsThreshold),
+      ...optional('extension_tools', policy.tools.extensionTools),
     };
   }
   if (policy.payload) {
-    document.payload = { ...optional('max_result_tokens', policy.payload.maxResultTokens) };
+    document.payload = {
+      ...optional('max_result_tokens', policy.payload.maxResultTokens),
+      ...optional('compress_terminal_output', policy.payload.compressTerminalOutput),
+    };
   }
   if (policy.session) {
     document.session = {
@@ -453,7 +518,10 @@ export function stringifyPolicy(policy: Policy): string {
     };
   }
   if (policy.retrieval) {
-    document.retrieval = { ...optional('dedupe_reads', policy.retrieval.dedupeReads) };
+    document.retrieval = {
+      ...optional('dedupe_reads', policy.retrieval.dedupeReads),
+      ...optional('exclude', policy.retrieval.exclude),
+    };
   }
 
   return stringifyYaml(document, { lineWidth: 0 });
