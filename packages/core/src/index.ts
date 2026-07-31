@@ -22,3 +22,8 @@ export * from './ledger/ledger.js';
 export * from './ledger/budget.js';
 export * from './dashboard/view-model.js';
 export * from './dashboard/export.js';
+export * from './waste/types.js';
+export * from './waste/context.js';
+export * from './waste/scoring.js';
+export * from './waste/registry.js';
+export * from './waste/report.js';

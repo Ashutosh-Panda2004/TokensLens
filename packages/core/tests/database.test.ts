@@ -21,6 +21,7 @@ function makeRecord(requestId: string, overrides: Partial<TurnRecord> = {}): Tur
     rounds: [],
     edits: [],
     compactions: [],
+    contentReferences: [],
     turnIndex: 0,
     source: { file: 'f', offset: 0 },
     ...overrides,

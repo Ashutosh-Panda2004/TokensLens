@@ -13,6 +13,7 @@ function record(overrides: Partial<TurnRecord> & Pick<TurnRecord, 'requestId' | 
     rounds: [],
     edits: [],
     compactions: [],
+    contentReferences: [],
     turnIndex: 0,
     source: { file: 'f', offset: 0 },
     ...overrides,

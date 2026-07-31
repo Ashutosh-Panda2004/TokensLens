@@ -7,6 +7,7 @@ import { registerSessionsCommand } from './commands/sessions.js';
 import { registerVerifyCommand } from './commands/verify.js';
 import { registerBudgetCommand } from './commands/budget.js';
 import { registerDashboardCommand } from './commands/dashboard.js';
+import { registerMcpRoiCommand, registerWasteCommand } from './commands/waste.js';
 
 /**
  * Builds the commander program from scratch on every call — no shared
@@ -37,6 +38,10 @@ export function createProgram(): Command {
 
   // Phase D2.
   registerDashboardCommand(program);
+
+  // Phase D3.
+  registerWasteCommand(program);
+  registerMcpRoiCommand(program);
 
   for (const roadmapCommand of ROADMAP_COMMANDS) {
     program

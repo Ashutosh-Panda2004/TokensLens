@@ -86,4 +86,34 @@ export const MIGRATIONS: readonly string[] = [
     PRIMARY KEY (request_id, tool_call_round_id)
   );
   `,
+
+  // v2 — Phase D3: the three signals the waste detectors need that the
+  // ledger never had to care about. All are redaction-safe by construction:
+  // sizes are lengths (the payload is measured and discarded), and every
+  // file identity is a salted hash produced during ingest.
+  `
+  ALTER TABLE tool_call ADD COLUMN result_chars INTEGER;
+  ALTER TABLE tool_call ADD COLUMN target_file_hash TEXT;
+  ALTER TABLE tool_call ADD COLUMN target_start_line INTEGER;
+  ALTER TABLE tool_call ADD COLUMN target_end_line INTEGER;
+
+  CREATE INDEX IF NOT EXISTS idx_tool_call_name ON tool_call(name);
+  CREATE INDEX IF NOT EXISTS idx_tool_call_target ON tool_call(target_file_hash);
+
+  CREATE TABLE IF NOT EXISTS content_reference (
+    request_id  TEXT NOT NULL REFERENCES request(request_id),
+    file_hash   TEXT NOT NULL,
+    PRIMARY KEY (request_id, file_hash)
+  );
+  CREATE INDEX IF NOT EXISTS idx_content_reference_hash ON content_reference(file_hash);
+
+  -- This migration changes *what ingest extracts*, not just where it is
+  -- stored. Every journal already recorded in ingested_file would otherwise
+  -- be skipped as "unchanged" on the next run and would never gain the new
+  -- columns, leaving a silently half-populated table — exactly the kind of
+  -- quiet wrong answer P5 forbids. Clearing the ingest cache forces one
+  -- full re-read; the file contents have not changed, only our reading of
+  -- them, and re-ingestion is idempotent by design (D1.7).
+  DELETE FROM ingested_file;
+  `,
 ];

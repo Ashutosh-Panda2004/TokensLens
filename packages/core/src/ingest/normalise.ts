@@ -2,13 +2,17 @@ import { SchemaDriftError } from '../shared/errors.js';
 import { logger } from '../shared/logger.js';
 import { asArray, asBoolean, asFiniteNumber, asRecord, asString } from '../shared/guards.js';
 import { hashPath } from './redact.js';
+import { measureResultChars } from './tool-results.js';
+import { extractToolCallTarget } from './tool-target.js';
 import type { ParsedJournal } from './reader.js';
 import type {
   CompactionEvent,
+  ContentReference,
   CostCentre,
   CostCentreCategory,
   CostCentreLabel,
   EditRecord,
+  ToolCallInvocation,
   ToolCallRound,
   TurnRecord,
 } from '../model/turn-record.js';
@@ -145,9 +149,10 @@ export function normaliseRequest(raw: unknown, ctx: NormaliseContext): TurnRecor
 
   const credits = asFiniteNumber(request.copilotCredits);
   const costCentres = normaliseCostCentres(request.promptTokenDetails, promptTokens, ctx);
-  const rounds = normaliseToolCallRounds(metadata.toolCallRounds, ctx);
+  const rounds = normaliseToolCallRounds(metadata.toolCallRounds, metadata.toolCallResults, ctx);
   const compactions = normaliseCompactions(metadata.summaries, ctx);
   const edits = normaliseEdits(request.response, ctx.salt, ctx);
+  const contentReferences = normaliseContentReferences(request.contentReferences, ctx.salt);
 
   return {
     sessionId: ctx.sessionId,
@@ -161,9 +166,37 @@ export function normaliseRequest(raw: unknown, ctx: NormaliseContext): TurnRecor
     rounds,
     edits,
     compactions,
+    contentReferences,
     turnIndex: ctx.index,
     source: { file: ctx.sourceFile, offset: ctx.offset },
   };
+}
+
+/**
+ * Extracts the files the model was shown as references. Each is reduced to a
+ * salted path hash immediately; the reference's display name, preview text
+ * and raw URI are all discarded. Duplicates within one request are collapsed
+ * — a file referenced three times in one turn is one referenced file.
+ */
+function normaliseContentReferences(raw: unknown, salt: string): ContentReference[] {
+  const items = asArray(raw) ?? [];
+  const seen = new Set<string>();
+
+  for (const item of items) {
+    const record = asRecord(item);
+    const reference = record && asRecord(record.reference);
+    if (!reference) continue;
+
+    // Real journals nest the URI one level deeper under `value`; some
+    // reference kinds put it directly on the reference itself.
+    const uri = asRecord(reference.value) ?? reference;
+    const filePath = asString(uri.fsPath) ?? asString(uri.path);
+    if (!filePath) continue;
+
+    seen.add(hashPath(filePath, salt));
+  }
+
+  return [...seen].map((fileHash) => ({ fileHash }));
 }
 
 function driftError(
@@ -220,7 +253,11 @@ function normaliseCostCentres(
   return centres;
 }
 
-function normaliseToolCallRounds(raw: unknown, ctx: NormaliseContext): ToolCallRound[] {
+function normaliseToolCallRounds(
+  raw: unknown,
+  rawResults: unknown,
+  ctx: NormaliseContext,
+): ToolCallRound[] {
   const items = asArray(raw) ?? [];
   const rounds: ToolCallRound[] = [];
 
@@ -240,14 +277,33 @@ function normaliseToolCallRounds(raw: unknown, ctx: NormaliseContext): ToolCallR
     }
 
     const rawToolCalls = asArray(record.toolCalls) ?? [];
+    const results = asRecord(rawResults);
     const toolCalls = rawToolCalls
-      .map((call) => {
+      .map((call): ToolCallInvocation | undefined => {
         const callRecord = asRecord(call);
         const callId = callRecord && asString(callRecord.id);
         const name = callRecord && asString(callRecord.name);
-        return callId && name ? { id: callId, name } : undefined;
+        if (!callRecord || !callId || !name) return undefined;
+
+        // `arguments` is parsed only to lift one file path out of it, which
+        // is hashed on the spot — see ingest/tool-target.ts. The raw string
+        // is never retained.
+        const target = extractToolCallTarget(asString(callRecord.arguments), ctx.salt);
+
+        // The result payload is measured, then dropped. Only the length survives.
+        const resultChars =
+          results && callId in results ? measureResultChars(results[callId]) : undefined;
+
+        return {
+          id: callId,
+          name,
+          ...(resultChars !== undefined ? { resultChars } : {}),
+          ...(target ? { targetFileHash: target.fileHash } : {}),
+          ...(target?.startLine !== undefined ? { targetStartLine: target.startLine } : {}),
+          ...(target?.endLine !== undefined ? { targetEndLine: target.endLine } : {}),
+        };
       })
-      .filter((call): call is { id: string; name: string } => call !== undefined);
+      .filter((call): call is ToolCallInvocation => call !== undefined);
 
     const thinking = asRecord(record.thinking);
     const thinkingTokens = thinking ? asFiniteNumber(thinking.tokens) : undefined;

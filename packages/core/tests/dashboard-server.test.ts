@@ -19,6 +19,7 @@ function record(overrides: Partial<TurnRecord> & Pick<TurnRecord, 'requestId' | 
     rounds: [],
     edits: [],
     compactions: [],
+    contentReferences: [],
     turnIndex: 0,
     source: { file: 'f', offset: 0 },
     ...overrides,
@@ -159,6 +160,43 @@ describe('dashboard server', () => {
       });
       expect(response.statusCode).toBe(200);
       expect(response.json<{ plan: string }>().plan).toBe('enterprise');
+    });
+  });
+
+  describe('waste board and MCP ROI (D2.7 / D2.8)', () => {
+    it('/api/waste returns ranked findings and the classes it could not assess', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/waste',
+        headers: { authorization: `Bearer ${TOKEN}` },
+      });
+      expect(response.statusCode).toBe(200);
+
+      const body = response.json<{
+        findings: { class: string; credits: { value: number } }[];
+        unavailable: { class: string; reason: string }[];
+        attributedCredits: number;
+      }>();
+
+      expect(Array.isArray(body.findings)).toBe(true);
+      // Classes that cannot be assessed are always reported, even on a tiny corpus.
+      expect(body.unavailable.length).toBeGreaterThan(0);
+      expect(typeof body.attributedCredits).toBe('number');
+    });
+
+    it('/api/mcp-roi returns per-tool-group invocation data', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/mcp-roi',
+        headers: { authorization: `Bearer ${TOKEN}` },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(Array.isArray(response.json())).toBe(true);
+    });
+
+    it('both new routes require the token', async () => {
+      expect((await app.inject({ method: 'GET', url: '/api/waste' })).statusCode).toBe(401);
+      expect((await app.inject({ method: 'GET', url: '/api/mcp-roi' })).statusCode).toBe(401);
     });
   });
 

@@ -326,14 +326,163 @@ function renderSessions(ledger) {
   );
 }
 
+/** D2.7 — the waste board: ranked causes, each with credits, confidence and a named fix. */
+function renderWaste(report) {
+  const children = [];
+
+  if (report.findings.length === 0) {
+    children.push(el('p', { className: 'tl-note' }, 'No waste detected in the ingested data.'));
+  } else {
+    const maxCredits = Math.max(1, ...report.findings.map((f) => f.credits.value));
+
+    children.push(
+      el('table', { className: 'tl-table' }, [
+        el(
+          'thead',
+          {},
+          el('tr', {}, [
+            el('th', {}, 'Class'),
+            el('th', {}, 'Cause'),
+            el('th', {}, 'Credits'),
+            el('th', {}, 'Confidence'),
+            el('th', {}, 'Fix'),
+            el('th', {}, ''),
+          ]),
+        ),
+        el(
+          'tbody',
+          {},
+          report.findings.map((finding) =>
+            el('tr', {}, [
+              el('td', {}, finding.class),
+              el('td', {}, [
+                finding.title,
+                el('div', { className: 'tl-subtle' }, finding.remediation.summary),
+              ]),
+              el('td', { className: 'tl-num' }, [
+                `${fmt(finding.credits.value)} `,
+                taggedChip(finding.credits),
+              ]),
+              el('td', { className: 'tl-num' }, `${String(Math.round(finding.confidence * 100))}%`),
+              el('td', {}, [
+                el(
+                  'span',
+                  { className: `tl-tier tl-tier-${finding.remediation.tier}` },
+                  `tier ${finding.remediation.tier}`,
+                ),
+              ]),
+              el('td', {}, bar((finding.credits.value / maxCredits) * 100)),
+            ]),
+          ),
+        ),
+      ]),
+    );
+
+    children.push(
+      el(
+        'p',
+        { className: 'tl-note' },
+        `Attributed ${fmt(report.attributedCredits)} of ${fmt(report.totalLedgerCredits)} ledger credits ` +
+          `(${String(Math.round(report.attributedShare * 100))}%).`,
+      ),
+    );
+
+    if (report.overlapWarning) {
+      children.push(el('p', { className: 'tl-warning' }, `⚠ ${report.overlapWarning}`));
+    }
+  }
+
+  // "We cannot look" is not the same as "there is nothing there" — the
+  // classes that could not be assessed are shown, not silently dropped.
+  if (report.unavailable.length > 0) {
+    children.push(
+      el('details', { className: 'tl-details' }, [
+        el(
+          'summary',
+          {},
+          `${String(report.unavailable.length)} class(es) could not be assessed from the available data`,
+        ),
+        el(
+          'ul',
+          { className: 'tl-list' },
+          report.unavailable.map((item) =>
+            el('li', {}, [
+              el('strong', {}, `${item.class} ${item.name}`),
+              el('div', { className: 'tl-subtle' }, item.reason),
+              el('div', { className: 'tl-subtle' }, `Unblocked by: ${item.unblockedBy}`),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  return card(
+    'Waste board',
+    'Every credit assigned to a named, fixable cause — tier A deploys as config, tier B as a runtime guard, tier C is advice',
+    ...children,
+  );
+}
+
+/** D2.8 — per tool group: is this integration earning the tokens it costs? */
+function renderMcpRoi(roi) {
+  if (roi.length === 0) {
+    return card('Tool / MCP return on investment', 'No tool invocations in the ingested data.');
+  }
+
+  const table = el('table', { className: 'tl-table' }, [
+    el(
+      'thead',
+      {},
+      el('tr', {}, [
+        el('th', {}, 'Server'),
+        el('th', {}, 'Tools'),
+        el('th', {}, 'Invocations'),
+        el('th', {}, 'Share'),
+        el('th', {}, 'Verdict'),
+      ]),
+    ),
+    el(
+      'tbody',
+      {},
+      roi.map((row) =>
+        el('tr', {}, [
+          el('td', {}, row.server),
+          el('td', { className: 'tl-num' }, String(row.toolCount)),
+          el('td', { className: 'tl-num' }, fmt(row.invocations, 0)),
+          el('td', { className: 'tl-num' }, `${String(Math.round(row.invocationShare * 100))}%`),
+          el(
+            'td',
+            {},
+            el('span', { className: `tl-verdict tl-verdict-${row.verdict}` }, row.verdict),
+          ),
+        ]),
+      ),
+    ),
+  ]);
+
+  return card(
+    'Tool / MCP return on investment',
+    'Tools that were invoked. A server installed but never called leaves no trace here — yet is billed on every request.',
+    table,
+  );
+}
+
 async function main() {
   const app = document.getElementById('app');
   try {
-    const [ledger, budget] = await Promise.all([api('/api/ledger'), api('/api/budget')]);
+    const [ledger, budget, waste, roi] = await Promise.all([
+      api('/api/ledger'),
+      api('/api/budget'),
+      api('/api/waste'),
+      api('/api/mcp-roi'),
+    ]);
     app.replaceChildren(
       renderTotals(ledger),
       renderBurnDown(ledger, budget),
       renderCostCentres(ledger),
+      renderWaste(waste),
+      renderMcpRoi(roi),
       renderModelMix(ledger),
       renderSessions(ledger),
     );

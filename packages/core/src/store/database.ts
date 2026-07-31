@@ -144,6 +144,139 @@ export function getAllCostCentres(db: Database.Database): CostCentreRow[] {
     .all() as CostCentreRow[];
 }
 
+export interface ToolCallRow {
+  readonly requestId: string;
+  readonly sessionId: string;
+  readonly ts: number;
+  readonly roundId: string;
+  readonly toolCallId: string;
+  readonly name: string;
+  /** Measured character length of the recorded result. Null when the journal recorded none. */
+  readonly resultChars: number | null;
+  readonly targetFileHash: string | null;
+  readonly targetStartLine: number | null;
+  readonly targetEndLine: number | null;
+}
+
+/**
+ * Every tool call, joined to its session and timestamp — the primitive
+ * W1 (tool-definition tax), W2 (duplicate retrieval) and W3 (oversized
+ * payloads) are all built on. Ordered so that per-session walks see calls
+ * in the order they actually happened, which is what lets W2 distinguish
+ * a first read from a re-read.
+ */
+export function getAllToolCalls(db: Database.Database): ToolCallRow[] {
+  return db
+    .prepare(
+      `SELECT
+         tc.request_id        AS requestId,
+         r.session_id         AS sessionId,
+         r.ts                 AS ts,
+         tc.round_id          AS roundId,
+         tc.tool_call_id      AS toolCallId,
+         tc.name              AS name,
+         tc.result_chars      AS resultChars,
+         tc.target_file_hash  AS targetFileHash,
+         tc.target_start_line AS targetStartLine,
+         tc.target_end_line   AS targetEndLine
+       FROM tool_call tc
+       JOIN request r ON r.request_id = tc.request_id
+       ORDER BY r.ts ASC, tc.request_id ASC, tc.round_id ASC`,
+    )
+    .all() as ToolCallRow[];
+}
+
+export interface RoundRow {
+  readonly requestId: string;
+  readonly roundId: string;
+  readonly ts: number;
+  readonly modelId: string | null;
+  readonly thinkingTokens: number | null;
+  readonly retries: number;
+}
+
+/** Every tool-call round — the primitive W6 (runaway loops) counts over. */
+export function getAllRounds(db: Database.Database): RoundRow[] {
+  return db
+    .prepare(
+      `SELECT
+         request_id      AS requestId,
+         round_id        AS roundId,
+         ts              AS ts,
+         model_id        AS modelId,
+         thinking_tokens AS thinkingTokens,
+         retries         AS retries
+       FROM round`,
+    )
+    .all() as RoundRow[];
+}
+
+export interface EditRow {
+  readonly requestId: string;
+  readonly fileHash: string;
+  readonly editCount: number;
+  /** SQLite stores booleans as 0/1. */
+  readonly done: number;
+}
+
+/** Every edit — the primitive W6 uses to ask "did this loop actually produce anything?". */
+export function getAllEdits(db: Database.Database): EditRow[] {
+  return db
+    .prepare(
+      `SELECT
+         request_id AS requestId,
+         file_hash  AS fileHash,
+         edit_count AS editCount,
+         done       AS done
+       FROM edit`,
+    )
+    .all() as EditRow[];
+}
+
+export interface CompactionRow {
+  readonly requestId: string;
+  readonly toolCallRoundId: string;
+  readonly model: string;
+  readonly numRounds: number;
+  readonly durationMs: number;
+  readonly outcome: string;
+  readonly contextLengthBefore: number;
+}
+
+/** Every compaction event — the primitive W9 (compaction overhead) prices. */
+export function getAllCompactions(db: Database.Database): CompactionRow[] {
+  return db
+    .prepare(
+      `SELECT
+         request_id            AS requestId,
+         tool_call_round_id    AS toolCallRoundId,
+         model                 AS model,
+         num_rounds            AS numRounds,
+         duration_ms           AS durationMs,
+         outcome               AS outcome,
+         context_length_before AS contextLengthBefore
+       FROM compaction`,
+    )
+    .all() as CompactionRow[];
+}
+
+export interface ContentReferenceRow {
+  readonly requestId: string;
+  readonly fileHash: string;
+}
+
+/** Every file the model was shown as a reference — the primitive W11 needs. */
+export function getAllContentReferences(db: Database.Database): ContentReferenceRow[] {
+  return db
+    .prepare(
+      `SELECT
+         request_id AS requestId,
+         file_hash  AS fileHash
+       FROM content_reference`,
+    )
+    .all() as ContentReferenceRow[];
+}
+
 /**
  * Persists `records` transactionally. Each request is fully replaced
  * (delete-then-insert its child rows) rather than diffed, which is what
@@ -179,8 +312,8 @@ export function saveTurnRecords(db: Database.Database, records: readonly TurnRec
     VALUES (@requestId, @roundId, @ts, @modelId, @thinkingTokens, @retries)
   `);
   const insertToolCall = db.prepare(`
-    INSERT INTO tool_call (request_id, round_id, tool_call_id, name)
-    VALUES (@requestId, @roundId, @toolCallId, @name)
+    INSERT INTO tool_call (request_id, round_id, tool_call_id, name, result_chars, target_file_hash, target_start_line, target_end_line)
+    VALUES (@requestId, @roundId, @toolCallId, @name, @resultChars, @targetFileHash, @targetStartLine, @targetEndLine)
   `);
 
   const deleteEdits = db.prepare(`DELETE FROM edit WHERE request_id = ?`);
@@ -193,6 +326,12 @@ export function saveTurnRecords(db: Database.Database, records: readonly TurnRec
   const insertCompaction = db.prepare(`
     INSERT INTO compaction (request_id, tool_call_round_id, model, num_rounds, duration_ms, outcome, context_length_before)
     VALUES (@requestId, @toolCallRoundId, @model, @numRounds, @durationMs, @outcome, @contextLengthBefore)
+  `);
+
+  const deleteContentRefs = db.prepare(`DELETE FROM content_reference WHERE request_id = ?`);
+  const insertContentRef = db.prepare(`
+    INSERT INTO content_reference (request_id, file_hash)
+    VALUES (@requestId, @fileHash)
   `);
 
   const insertAll = db.transaction((batch: readonly TurnRecord[]) => {
@@ -233,6 +372,10 @@ export function saveTurnRecords(db: Database.Database, records: readonly TurnRec
             roundId: round.id,
             toolCallId: call.id,
             name: call.name,
+            resultChars: call.resultChars ?? null,
+            targetFileHash: call.targetFileHash ?? null,
+            targetStartLine: call.targetStartLine ?? null,
+            targetEndLine: call.targetEndLine ?? null,
           });
         }
       }
@@ -250,6 +393,11 @@ export function saveTurnRecords(db: Database.Database, records: readonly TurnRec
       deleteCompactions.run(record.requestId);
       for (const compaction of record.compactions) {
         insertCompaction.run({ requestId: record.requestId, ...compaction });
+      }
+
+      deleteContentRefs.run(record.requestId);
+      for (const reference of record.contentReferences) {
+        insertContentRef.run({ requestId: record.requestId, fileHash: reference.fileHash });
       }
     }
   });

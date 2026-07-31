@@ -218,3 +218,80 @@ table.tl-table td.tl-num {
   color: var(--tl-text-muted);
   font-size: 0.78rem;
 }
+
+/* --- Phase D3: waste board and MCP ROI --- */
+.tl-subtle {
+  color: var(--tl-text-muted);
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+
+.tl-tier {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: var(--tl-bar-track);
+  color: var(--tl-text-muted);
+}
+.tl-tier-A {
+  background: #dafbe1;
+  color: #1a7f37;
+}
+.tl-tier-B {
+  background: #ddf4ff;
+  color: #0969da;
+}
+.tl-tier-C {
+  background: #fff3d6;
+  color: #9a6700;
+}
+
+.tl-verdict {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.tl-verdict-active {
+  background: #dafbe1;
+  color: #1a7f37;
+}
+.tl-verdict-marginal {
+  background: #fff3d6;
+  color: #9a6700;
+}
+.tl-verdict-unused-in-window {
+  background: #ffebe9;
+  color: #cf222e;
+}
+
+.tl-warning {
+  background: #fff3d6;
+  color: #7d4e00;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  margin: 12px 0 0;
+}
+
+.tl-details {
+  margin-top: 16px;
+  border-top: 1px solid var(--tl-border);
+  padding-top: 12px;
+}
+.tl-details summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--tl-text-muted);
+}
+.tl-list {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+}
+.tl-list li {
+  margin-bottom: 10px;
+}

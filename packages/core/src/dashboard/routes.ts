@@ -3,6 +3,7 @@ import type Database from 'better-sqlite3';
 import { buildLedger } from '../ledger/ledger.js';
 import { forecastBudget, type CopilotPlan } from '../ledger/budget.js';
 import { getRequestById } from '../store/database.js';
+import { buildMcpRoi, buildWasteReport } from '../waste/report.js';
 import { toBudgetView, toLedgerView } from './view-model.js';
 
 interface BudgetQuery {
@@ -34,6 +35,16 @@ export function registerApiRoutes(app: FastifyInstance, db: Database.Database): 
 
   app.get('/api/ledger', (_request, reply: FastifyReply) => {
     reply.send(toLedgerView(buildLedger(db)));
+  });
+
+  // Phase D2.7 / D2.8 — deferred from D2 because there was no waste data to
+  // render until the attribution engine existed.
+  app.get('/api/waste', (_request, reply: FastifyReply) => {
+    reply.send(buildWasteReport(db));
+  });
+
+  app.get('/api/mcp-roi', (_request, reply: FastifyReply) => {
+    reply.send(buildMcpRoi(db));
   });
 
   app.get(
