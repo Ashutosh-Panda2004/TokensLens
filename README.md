@@ -9,10 +9,11 @@ fleet-wide, with no developer action required. It grew out of a companion strate
 (`PLAN.md`) covering the research and business case; this repository is the build.
 
 **Build plan:** [`DEVELOPMENT-PLAN.md`](DEVELOPMENT-PLAN.md) — ten phases, D0 through D9.
-**Current status:** Phases **D0–D5 complete**, plus the privacy rule (P7) enforced across all of
-them. The measurement spine is finished and advisory has become enforcement: ledger, dashboard,
-waste attribution, simulation, and a policy compiler that emits the artefact an MDM team deploys.
-Next is **D6 · Runtime guards**, where interception happens per request.
+**Current status:** Phases **D0–D5 and D10 complete**, plus the privacy rule (P7) enforced across all
+of them. The measurement spine is finished, advisory has become enforcement, and the outcome layer
+can now say whether any of it helped: ledger, dashboard, waste attribution, simulation, a policy
+compiler that emits the artefact an MDM team deploys, and a causal estimator for what a dated change
+in AI availability actually did. Next is **D6 · Runtime guards**.
 
 ## What this is (and isn't)
 
@@ -53,6 +54,7 @@ TokenLens/
 │  │  │  ├─ waste/            # W1..W14 detectors, one file each
 │  │  │  ├─ simulate/         # replay engine, policy DSL, levers, ceiling guard
 │  │  │  ├─ policy/           # channel detection + emitters + rollback
+│  │  │  ├─ outcomes/         # git ingest, survival, effort, displacement, causal estimator
 │  │  │  ├─ privacy/          # scope, identifier hashing, the report gate
 │  │  │  ├─ dashboard/        # fastify + static SPA
 │  │  │  ├─ shared/           # logger, config, io, errors, security baseline
@@ -79,6 +81,9 @@ tokenlens policy detect       # which managed-settings channel wins on this mach
 tokenlens policy emit --dry-run   # the diff, with the credits each line saves
 tokenlens policy emit --out ./out # .reg / .mobileconfig / settings.json / .agent.md + rollbacks
 tokenlens policy verify       # did the deploy actually take effect?
+tokenlens outcomes survival   # how much of what is written survives, and where effort goes
+tokenlens outcomes displacement   # is work being relocated rather than eliminated?
+tokenlens outcomes effect --cohorts licences.csv   # what a dated change in AI availability did
 ```
 
 ## What's implemented
@@ -96,6 +101,7 @@ tokenlens policy verify       # did the deploy actually take effect?
 | D3 | Seven waste detectors; seven more declared undetectable **with stated blockers** | `src/waste/` |
 | D4 | Counterfactual replay engine, policy DSL, six levers, contract-ceiling guard | `src/simulate/` |
 | D5 | Channel detection, emitters for MDM / macOS / file-based / workspace / `.agent.md`, rollbacks | `src/policy/` |
+| D10 | Code survival, effort decomposition, displacement detection, staggered difference-in-differences | `src/outcomes/` |
 | P7 | Privacy enforcement — salted-hash identifiers, k-anonymity floor, a gate that throws before a report is written | `src/privacy/` |
 
 Everything above is deterministic: zero network calls, zero model calls, zero telemetry egress.

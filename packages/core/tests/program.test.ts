@@ -26,6 +26,7 @@ describe('createProgram', () => {
       'mcp-roi',
       'simulate',
       'policy',
+      'outcomes',
     ].sort();
     expect(registered).toEqual(expected);
   });
@@ -43,6 +44,7 @@ describe('createProgram', () => {
       'mcp-roi',
       'simulate',
       'policy',
+      'outcomes',
     ]) {
       expect(commandNames).toContain(name);
     }
