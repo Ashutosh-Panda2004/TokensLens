@@ -5,10 +5,9 @@ Measured GitHub Copilot credit ledger, waste attribution, and policy compiler fo
 TokenLens reads the billing telemetry VS Code already writes to local disk, decomposes every
 credit into its five cost centres, attributes waste to named causes, simulates a fix before you
 adopt it, and compiles the result into a policy artefact your MDM/platform team deploys once —
-fleet-wide, with no developer action required. It grew out of a companion strategy document
-(`PLAN.md`) covering the research and business case; this repository is the build.
+fleet-wide, with no developer action required.
 
-**Build plan:** [`DEVELOPMENT-PLAN.md`](DEVELOPMENT-PLAN.md) — ten phases, D0 through D9.
+**Build plan:** ten phases, D0 through D9, tracked internally.
 **Current status:** **every phase, D0 through D10, is complete**, with the privacy rule (P7) enforced
 across all of them. The full chain now runs end to end: measure the spend exactly, attribute the
 waste, price the fix, deploy it as a managed setting, intercept what configuration cannot reach,
@@ -20,8 +19,8 @@ across a fleet, and re-fit the policy when the fleet moves out from under it.
 One Node.js/TypeScript binary (`tokenlens`) that runs as a CLI, a local dashboard server, a
 runtime hook target, an MCP server, and a policy compiler — one codebase, one build, one version.
 **Not** a SaaS, a proxy, a daemon, or an agent. The core makes zero network calls and zero model
-calls — see `DEVELOPMENT-PLAN.md` §0 for the full reasoning, including why AI integration is
-deliberately excluded from everything except one opt-in, org-tier feature planned for Phase D9.
+calls; AI integration is deliberately excluded from everything except one opt-in, org-tier
+feature planned for Phase D9.
 
 ## Prerequisites
 
@@ -43,7 +42,6 @@ npm run lint
 
 ```
 TokenLens/
-├─ DEVELOPMENT-PLAN.md        # the build plan — read this first
 ├─ packages/
 │  ├─ core/                   # the tokenlens binary — CLI, ledger, waste, simulation, policy
 │  │  ├─ src/
@@ -130,6 +128,9 @@ Everything above is deterministic: zero network calls, zero model calls, zero te
 
 ## Design principles (enforced, not just documented)
 
-See `DEVELOPMENT-PLAN.md` §3 for the full list (S1–S10). In short: no source code leaves the
-machine, every number is traceable to a file and offset, an estimate is never presented as a
-measurement, and failures are always loud.
+No source code leaves the machine, every number is traceable to a file and offset, an estimate
+is never presented as a measurement, and failures are always loud.
+
+## License
+
+[MIT](LICENSE)

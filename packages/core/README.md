@@ -1,15 +1,12 @@
 # tokenlens
 
 The `tokenlens` CLI/core — credit ledger, waste attribution, simulation, and policy compiler for
-GitHub Copilot in VS Code. See [`../../DEVELOPMENT-PLAN.md`](../../DEVELOPMENT-PLAN.md) for the
-full phase-by-phase build plan.
+GitHub Copilot in VS Code. See the [root README](../../README.md) for the full command reference
+and phase-by-phase status.
 
-## Phase D0 status
+## Status
 
-Foundation only: provenance types, error taxonomy, logger, config/io helpers, a security
-baseline, and a CLI shell where every planned command is registered but not yet implemented
-(each reports `NotImplementedError` naming the phase that ships it — run `tokenlens --help` to
-see the full roadmap).
+All phases (D0 through D10) are implemented — run `tokenlens --help` for the full command list.
 
 ## Scripts
 
