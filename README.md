@@ -31,11 +31,149 @@ feature planned for Phase D9.
 
 ## Getting started
 
+### 1. Install dependencies and build
+
 ```powershell
 npm install
 npm run build
 npm test
 npm run lint
+```
+
+### 2. Set up the CLI as a global command
+
+Make `tokenlens` available in your terminal from anywhere:
+
+```powershell
+npm run cli:link
+```
+
+Verify it works:
+
+```powershell
+tokenlens --version
+tokenlens --help
+```
+
+### 3. Use in your VS Code workspace
+
+The CLI reads Copilot usage data from your local VS Code journals. To start:
+
+```powershell
+# See your spending by day and model
+tokenlens ledger
+
+# Find sessions that spent the most credits
+tokenlens sessions --top 10
+
+# Identify structural waste patterns (tool definitions, context bloat, etc.)
+tokenlens waste
+
+# Open the visual dashboard (http://localhost:7331)
+tokenlens dashboard
+```
+
+### 4. Common workflows
+
+**See where money went (start here):**
+```powershell
+tokenlens ledger
+```
+Shows credits spent per day, model, session, and cost centre (tools, context, inference).
+
+**Find structural inefficiencies:**
+```powershell
+tokenlens waste
+tokenlens waste --explain W1
+```
+Ranked waste patterns with recommended fixes.
+
+**Test a cost-saving policy before deploying:**
+```powershell
+tokenlens simulate --all
+```
+Replays your spending history under a proposed policy and shows savings.
+
+**Generate a policy for your team:**
+```powershell
+tokenlens simulate --emit-policy > policy.yml
+tokenlens policy emit --out ./out
+```
+Creates configuration files for Windows, Mac, and VS Code to deploy fleet-wide.
+
+**Check what's being spent right now (budget status):**
+```powershell
+tokenlens budget
+```
+Shows month-to-date spend vs allowance and projected month-end.
+
+**Prove a policy works (randomised holdout):**
+```powershell
+# Split team in half: test vs control
+tokenlens holdout assign --roster team.csv
+
+# After 2–4 weeks
+tokenlens holdout analyse
+```
+Measures if the policy saved money without hurting productivity.
+
+### 5. Set up the VS Code extension (optional)
+
+The status-bar HUD shows cost estimates in real-time while you use Copilot:
+
+```powershell
+# Build the extension
+npm run build -w tokenlens-vscode
+
+# Install in VS Code
+code --install-extension packages/vscode/tokenlens-vscode-0.1.0.vsix
+
+# Restart VS Code
+```
+
+Once installed, you'll see cost feedback in the status bar when Copilot suggests code.
+
+### 6. Configuration
+
+TokenLens stores settings in `.tokenlens/config.json`:
+
+```json
+{
+  "plan": "pro",
+  "monthlyAllowance": 300
+}
+```
+
+Edit in the dashboard (http://localhost:7331) or directly in the file.
+
+**Environment variables:**
+- `TOKENLENS_HOME` – where to store data (default: `~/.tokenlens`)
+- `TOKENLENS_MONTHLY_ALLOWANCE` – override monthly budget from command line
+- `TOKENLENS_LOG_LEVEL` – set to `debug` for verbose output
+
+### 7. Troubleshooting
+
+**Command not found: `tokenlens`**
+```powershell
+npm run cli:link
+```
+
+**No Copilot data showing:**
+- Make sure you've used Copilot in VS Code at least once
+- Check that `.tokenlens/ledger.sqlite3` exists in your home directory
+- Run `tokenlens ledger --verbose` for debug output
+
+**Dashboard won't open:**
+```powershell
+# Start it manually on a different port
+tokenlens dashboard --port 8080
+# Then visit http://localhost:8080
+```
+
+**Need to reset or start over:**
+```powershell
+# Clear local data (careful—this deletes stored sessions)
+rm -r ~/.tokenlens
 ```
 
 ## Repository layout
