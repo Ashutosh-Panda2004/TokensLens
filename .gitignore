@@ -14,6 +14,12 @@ coverage/
 # Internal strategic/business planning doc — not for the remote repo
 /DEVELOPMENT-PLAN.md
 
+# Internal presentation/prep notes — casual drafts with local paths and
+# fictional figures, not meant for the public repo
+/PRESENTATION-GUIDE.md
+/PROJECT_OVERVIEW.md
+/WEBSITE-BRIEF.md
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db
