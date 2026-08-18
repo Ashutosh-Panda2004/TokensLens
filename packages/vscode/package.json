@@ -4,6 +4,7 @@
   "description": "Live Copilot credit HUD, pre-flight cost estimate and session-age indicator. A thin client over the tokenlens binary.",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "publisher": "tokenlens",
   "engines": {
     "vscode": "^1.90.0",
@@ -17,6 +18,38 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "tokenlens",
+          "title": "TokenLens",
+          "icon": "$(graph)"
+        }
+      ]
+    },
+    "views": {
+      "tokenlens": [
+        {
+          "type": "webview",
+          "id": "tokenlens.hud",
+          "name": "Spend"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "tokenlens.refresh",
+          "when": "view == tokenlens.hud",
+          "group": "navigation"
+        },
+        {
+          "command": "tokenlens.openDashboard",
+          "when": "view == tokenlens.hud",
+          "group": "navigation"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "tokenlens.refresh",
@@ -31,6 +64,11 @@
       {
         "command": "tokenlens.showBreakdown",
         "title": "Show spend breakdown",
+        "category": "TokenLens"
+      },
+      {
+        "command": "tokenlens.showSettings",
+        "title": "Show settings in force",
         "category": "TokenLens"
       },
       {
@@ -50,17 +88,68 @@
         "tokenlens.plan": {
           "type": "string",
           "enum": [
+            "",
+            "pro",
+            "pro-plus",
+            "max",
             "business",
             "enterprise"
           ],
-          "default": "enterprise",
-          "description": "Copilot plan, which sets the included monthly allowance."
+          "enumDescriptions": [
+            "Inherit the plan from TokenLens config, so the CLI, dashboard and this extension agree.",
+            "Override: Copilot Pro.",
+            "Override: Copilot Pro+.",
+            "Override: Copilot Max.",
+            "Override: Copilot Business.",
+            "Override: Copilot Enterprise."
+          ],
+          "default": "",
+          "markdownDescription": "Overrides the Copilot plan set in `.tokenlens/config.json`. Leave empty to inherit the shared setting \u2014 set it in the dashboard under Settings instead, so every surface agrees."
         },
         "tokenlens.refreshSeconds": {
           "type": "number",
-          "default": 120,
+          "default": 300,
           "minimum": 30,
-          "description": "How often to re-read the ledger. Each refresh runs the core binary, so this is not free."
+          "markdownDescription": "Safety-net poll interval. TokenLens watches the chat journals and refreshes within seconds of a turn finishing, so this rarely needs lowering \u2014 each poll starts the core binary, which is not free."
+        },
+        "tokenlens.statusBar.metric": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "remaining",
+            "spent",
+            "today",
+            "session",
+            "projected"
+          ],
+          "enumDescriptions": [
+            "Remaining when a limit is set, spend and money when it is not.",
+            "Same as auto \u2014 remaining where that is meaningful.",
+            "Credits and money spent this month.",
+            "Credits and money spent in this workspace today.",
+            "What the next turn of the longest conversation will cost.",
+            "Projected month-end credits and money."
+          ],
+          "default": "auto",
+          "markdownDescription": "Which single figure the status bar shows. The binding constraint differs by plan, so this is configurable rather than assumed."
+        },
+        "tokenlens.notifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn once at 75%, 90% and 100% of the monthly allowance. Each fires at most once per month."
+        },
+        "tokenlens.multiRoot": {
+          "type": "string",
+          "enum": [
+            "aggregate",
+            "active-editor"
+          ],
+          "enumDescriptions": [
+            "Cover every folder in the workspace — what the window claims to be showing.",
+            "Cover only the folder containing the active editor."
+          ],
+          "default": "aggregate",
+          "markdownDescription": "How a multi-root workspace is scoped. Reporting only the first folder, which is what happens without this, understates a multi-root workspace silently."
         },
         "tokenlens.enabled": {
           "type": "boolean",
@@ -71,12 +160,13 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run clean && tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
     "package": "vsce package --no-dependencies",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "devDependencies": {
-    "@types/vscode": "^1.90.0"
+    "@types/vscode": "^1.90.0",
+    "tokenlens": "*"
   }
 }

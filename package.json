@@ -7,6 +7,7 @@
   "workspaces": [
     "packages/*"
   ],
+  "license": "MIT",
   "engines": {
     "node": ">=20"
   },
@@ -20,6 +21,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "cli:link": "npm run build -w tokenlens && npm link -w tokenlens",
+    "cli:unlink": "npm rm -g tokenlens",
     "clean": "npm run clean --workspaces --if-present"
   },
   "devDependencies": {
