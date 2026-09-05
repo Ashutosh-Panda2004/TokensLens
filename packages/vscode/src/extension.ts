@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
-import { CoreClient, type BudgetForecast, type CoreFailure, type LedgerSummary } from './core.js';
+import { CoreClient, type CoreFailure, type EffectiveConfig, type HudSnapshot } from './core.js';
+import { HudViewProvider } from './webview.js';
+import { barTextFor, credits, money, multiple, tooltipFor, type BarMetric } from './render.js';
 
 /**
- * **Phase D7 — the status-bar HUD.**
+ * **Phase D7/D14 — the status-bar HUD.**
  *
  * ## What problem this closes
  *
@@ -15,30 +17,42 @@ import { CoreClient, type BudgetForecast, type CoreFailure, type LedgerSummary }
  *
  * ## Zero business logic (D7.5)
  *
- * Nothing here computes a credit. Every figure comes from the core binary,
- * so the status bar and `tokenlens ledger` cannot disagree — and the
- * privacy and provenance guarantees are inherited rather than restated.
+ * Nothing here computes a credit. The entire payload comes from one
+ * `tokenlens hud --json` call, so the HUD and the CLI cannot disagree — and
+ * the privacy and provenance guarantees are inherited rather than restated.
  *
  * ## Degrading gracefully is an exit criterion, not politeness
  *
  * The extension may be installed where the binary is not. It must then be
  * quiet and useful — say what is missing and how to fix it — rather than
- * erroring on a timer. An extension that produces notifications nobody can
- * act on gets uninstalled, and takes the measurement programme with it.
+ * erroring on a timer.
  */
 const REFRESH_COMMAND = 'tokenlens.refresh';
 
 export function activate(context: vscode.ExtensionContext): void {
-  const hud = new Hud(context);
-  context.subscriptions.push(hud);
+  // The panel's buttons run the same commands as the palette rather than
+  // reaching into the HUD directly, so a webview cannot invoke anything a
+  // user could not invoke themselves.
+  const panel = new HudViewProvider(context.extensionUri, (command) => {
+    void vscode.commands.executeCommand(command);
+  });
+  const hud = new Hud(context, panel);
 
   context.subscriptions.push(
+    hud,
+    vscode.window.registerWebviewViewProvider(HudViewProvider.viewType, panel),
     vscode.commands.registerCommand(REFRESH_COMMAND, () => hud.refresh()),
     vscode.commands.registerCommand('tokenlens.showBreakdown', () => hud.showBreakdown()),
+    vscode.commands.registerCommand('tokenlens.showSettings', () => hud.showSettings()),
     vscode.commands.registerCommand('tokenlens.openDashboard', () => openDashboard()),
     vscode.commands.registerCommand('tokenlens.newChat', () => startFreshChat()),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration('tokenlens')) hud.reconfigure();
+    }),
+    // Returning to an editor left open overnight is the common case, and the
+    // figures behind it are certainly stale.
+    vscode.window.onDidChangeWindowState((state) => {
+      if (state.focused) void hud.refresh();
     }),
   );
 }
@@ -47,19 +61,21 @@ export function deactivate(): void {
   // Everything is registered as a disposable on the extension context.
 }
 
-interface Snapshot {
-  readonly ledger: LedgerSummary;
-  readonly budget: BudgetForecast | undefined;
-}
-
 class Hud implements vscode.Disposable {
   private readonly item: vscode.StatusBarItem;
   private timer: ReturnType<typeof setInterval> | undefined;
-  private snapshot: Snapshot | undefined;
+  private snapshot: HudSnapshot | undefined;
+  private settings: EffectiveConfig | undefined;
+  private watchers: vscode.FileSystemWatcher[] = [];
+  private pending: ReturnType<typeof setTimeout> | undefined;
+  private refreshing = false;
   /** Reported once per cause, not once per refresh. */
   private lastReportedFailure: string | undefined;
 
-  constructor(private readonly context: vscode.ExtensionContext) {
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly panel: HudViewProvider,
+  ) {
     this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     this.item.command = 'tokenlens.showBreakdown';
     this.reconfigure();
@@ -67,6 +83,8 @@ class Hud implements vscode.Disposable {
 
   dispose(): void {
     if (this.timer) clearInterval(this.timer);
+    if (this.pending) clearTimeout(this.pending);
+    this.disposeWatchers();
     this.item.dispose();
   }
 
@@ -74,156 +92,238 @@ class Hud implements vscode.Disposable {
     const config = vscode.workspace.getConfiguration('tokenlens');
     if (this.timer) clearInterval(this.timer);
 
-    if (config.get<boolean>('enabled', true) !== true) {
+    if (!config.get<boolean>('enabled', true)) {
       this.item.hide();
+      this.disposeWatchers();
       return;
     }
 
     this.item.show();
-    // Each refresh spawns the core binary. Polling faster than this costs
-    // more than the figure is worth.
-    const seconds = Math.max(30, config.get<number>('refreshSeconds', 120));
+
+    // D14.4 — polling is now a slow safety net, not the primary mechanism.
+    // The watcher below reacts within seconds of a turn finishing, so a fast
+    // poll would only spend process starts to learn nothing.
+    const seconds = Math.max(30, config.get<number>('refreshSeconds', 300));
     this.timer = setInterval(() => void this.refresh(), seconds * 1000);
+
+    this.watchJournals();
+    void this.syncSettings();
     void this.refresh();
-  }
-
-  async refresh(): Promise<void> {
-    const client = this.client();
-    const plan = vscode.workspace.getConfiguration('tokenlens').get<string>('plan', 'enterprise');
-
-    const ledger = await client.ledger();
-    if (!ledger.ok) {
-      this.renderFailure(ledger.failure);
-      return;
-    }
-
-    const budget = await client.budget(plan);
-    this.snapshot = { ledger: ledger.value, budget: budget.ok ? budget.value : undefined };
-    this.lastReportedFailure = undefined;
-    this.render();
   }
 
   private client(): CoreClient {
     const config = vscode.workspace.getConfiguration('tokenlens');
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    const roots = folders.map((folder) => folder.uri.fsPath);
+
+    // Following the active editor is offered for people who work in one
+    // folder of a large workspace at a time; aggregating is the default
+    // because it matches what the window claims to be showing.
+    const active =
+      config.get<string>('multiRoot', 'aggregate') === 'active-editor'
+        ? activeEditorRoot()
+        : undefined;
+
     return new CoreClient({
       binaryPath: config.get<string>('binaryPath', 'tokenlens'),
-      cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+      cwd: active ?? roots[0],
+      roots: active === undefined && roots.length > 1 ? roots : [],
     });
   }
 
+  async refresh(): Promise<void> {
+    // A watcher burst and the poll timer can land together; a second spawn
+    // would produce an identical answer at twice the cost.
+    if (this.refreshing) return;
+    this.refreshing = true;
+    try {
+      const result = await this.client().hud();
+      if (!result.ok) {
+        this.renderFailure(result.failure);
+        return;
+      }
+      this.snapshot = result.value;
+      this.lastReportedFailure = undefined;
+      this.render();
+      this.panel.update(result.value);
+      this.checkThresholds(result.value);
+    } finally {
+      this.refreshing = false;
+    }
+  }
+
   /**
-   * D7.1 — month-to-date, remaining allowance, and the run-rate warning.
+   * D14.4 — liveness, with its honest floor.
    *
-   * The status bar shows **remaining**, not spent. Spent is a fact about the
-   * past; remaining is the constraint on what to do next, and only one of
-   * those changes a decision.
+   * Credits are written to the journal when a turn *completes*: streaming is
+   * visible but uncosted, so "seconds after the turn ends" is the floor, and
+   * no amount of polling moves it. Watching beats polling anyway, because it
+   * reacts to the event rather than to the clock.
    */
+  private watchJournals(): void {
+    this.disposeWatchers();
+
+    const storage = vscode.Uri.joinPath(this.context.globalStorageUri, '..', '..');
+    const pattern = new vscode.RelativePattern(storage, '**/chatSessions/*.jsonl');
+    const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+    const bump = (): void => {
+      this.scheduleRefresh();
+    };
+    watcher.onDidChange(bump);
+    watcher.onDidCreate(bump);
+    this.watchers.push(watcher);
+  }
+
+  /** A finishing turn writes several times; one refresh per burst is enough. */
+  private scheduleRefresh(): void {
+    if (this.pending) clearTimeout(this.pending);
+    this.pending = setTimeout(() => void this.refresh(), 2000);
+  }
+
+  private disposeWatchers(): void {
+    for (const watcher of this.watchers) watcher.dispose();
+    this.watchers = [];
+  }
+
+  private async syncSettings(): Promise<void> {
+    const result = await this.client().config();
+    if (!result.ok) return;
+    this.settings = result.value;
+    this.watchConfigFiles(result.value.paths);
+  }
+
+  /**
+   * A setting saved in the dashboard must reach the HUD without waiting out
+   * the poll interval, or the two surfaces disagree for minutes at a time.
+   * The paths come from the binary rather than being guessed, because
+   * `TOKENLENS_HOME` would break a guess.
+   */
+  private watchConfigFiles(paths: { readonly project: string; readonly user: string }): void {
+    for (const file of new Set([paths.project, paths.user])) {
+      const uri = vscode.Uri.file(file);
+      const pattern = new vscode.RelativePattern(vscode.Uri.joinPath(uri, '..'), '*.json');
+      const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+      const onChange = (): void => {
+        void this.onConfigChanged();
+      };
+      watcher.onDidChange(onChange);
+      watcher.onDidCreate(onChange);
+      watcher.onDidDelete(onChange);
+      this.watchers.push(watcher);
+    }
+  }
+
+  private async onConfigChanged(): Promise<void> {
+    const result = await this.client().config();
+    if (result.ok) this.settings = result.value;
+    await this.refresh();
+  }
+
   private render(): void {
     if (!this.snapshot) return;
-    const { ledger, budget } = this.snapshot;
+    const metric = vscode.workspace
+      .getConfiguration('tokenlens')
+      .get<BarMetric>('statusBar.metric', 'auto');
 
-    if (!budget) {
-      this.item.text = `$(graph) ${formatCredits(ledger.totalCredits)} cr`;
-      this.item.tooltip = this.tooltip();
-      this.item.backgroundColor = undefined;
-      return;
-    }
+    const bar = barTextFor(this.snapshot, metric);
+    const icon =
+      bar.severity === 'error'
+        ? '$(error)'
+        : bar.severity === 'warning'
+          ? '$(warning)'
+          : '$(graph)';
 
-    const remaining = Math.max(0, budget.monthlyAllowance - budget.monthToDateCredits);
-    const overspending = budget.onTrackToExceedAllowance;
-
-    this.item.text = `${overspending ? '$(warning)' : '$(graph)'} ${formatCredits(remaining)} cr left`;
-
-    // Amber only when the run-rate is the problem, red only once the
-    // allowance is actually gone. A status bar that is always coloured
-    // stops being a signal.
+    this.item.text = `${icon} ${bar.text}`;
+    // Colour is reserved: amber only when the run-rate is the problem, red
+    // only once the allowance is gone. A permanently coloured status bar has
+    // stopped being a signal.
     this.item.backgroundColor =
-      remaining <= 0
+      bar.severity === 'error'
         ? new vscode.ThemeColor('statusBarItem.errorBackground')
-        : overspending
+        : bar.severity === 'warning'
           ? new vscode.ThemeColor('statusBarItem.warningBackground')
           : undefined;
-
-    this.item.tooltip = this.tooltip();
-  }
-
-  private tooltip(): vscode.MarkdownString {
-    const markdown = new vscode.MarkdownString();
-    markdown.isTrusted = true;
-    if (!this.snapshot) return markdown;
-
-    const { ledger, budget } = this.snapshot;
-    markdown.appendMarkdown('**TokenLens**\n\n');
-
-    if (budget) {
-      markdown.appendMarkdown(
-        `Month to date: **${formatCredits(budget.monthToDateCredits)}** of ` +
-          `${formatCredits(budget.monthlyAllowance)} credits ` +
-          `(day ${String(budget.daysElapsedInMonth)} of ${String(budget.daysInMonth)})\n\n`,
-      );
-      markdown.appendMarkdown(
-        `Projected month end: **${formatCredits(budget.projectedMonthEndCredits)}**\n\n`,
-      );
-      if (budget.onTrackToExceedAllowance) {
-        markdown.appendMarkdown(
-          `⚠ On track to exceed the allowance by ${formatCredits(budget.projectedOverage)} credits.\n\n`,
-        );
-      }
-      if (budget.hardBlockDate !== undefined) {
-        markdown.appendMarkdown(
-          `At this rate the allowance runs out around **${budget.hardBlockDate}**. ` +
-            'There is no fallback model when it does.\n\n',
-        );
-      }
-    }
-
-    // The provenance split is carried into the HUD rather than dropped.
-    // Most of a credit figure is a rate-card estimate, and a tooltip that
-    // hid that would be presenting an estimate as a measurement — the one
-    // thing this project refuses to do anywhere else.
-    const measuredShare =
-      ledger.totalCredits > 0 ? ledger.measuredCredits / ledger.totalCredits : 0;
-    markdown.appendMarkdown(
-      `${(measuredShare * 100).toFixed(0)}% of this is measured; the rest is rate-card estimated.\n\n`,
-    );
-    markdown.appendMarkdown('[Breakdown](command:tokenlens.showBreakdown) · ');
-    markdown.appendMarkdown('[Dashboard](command:tokenlens.openDashboard) · ');
-    markdown.appendMarkdown(`[Refresh](command:${REFRESH_COMMAND})`);
-    return markdown;
+    this.item.tooltip = tooltipFor(this.snapshot);
   }
 
   /**
-   * Degradation, stated in terms of what to do about it, and notified at
-   * most once per cause. A background timer raising a notification every
-   * two minutes because a binary is missing is worse than one that says
-   * nothing at all.
+   * D14.8 — thresholds that fire once and mean something.
+   *
+   * Mirrors GitHub's own 75/90/100 alert points, keyed by month so a new
+   * month re-arms them, and persisted so a window reload does not.
    */
+  private checkThresholds(snapshot: HudSnapshot): void {
+    const config = vscode.workspace.getConfiguration('tokenlens');
+    if (!config.get<boolean>('notifications', true)) return;
+
+    const used = snapshot.month.percentUsed;
+    if (used === null) return;
+
+    const month = snapshot.generatedAt.slice(0, 7);
+    for (const threshold of [1, 0.9, 0.75]) {
+      if (used < threshold) continue;
+
+      const key = `tokenlens.notified.${month}.${String(threshold)}`;
+      if (this.context.globalState.get<boolean>(key) === true) return;
+      void this.context.globalState.update(key, true);
+
+      const headline =
+        threshold >= 1
+          ? `TokenLens: this month's allowance is spent. ${money(snapshot.month.incrementalUsd)} beyond it so far.`
+          : `TokenLens: ${String(Math.round(threshold * 100))}% of this month's allowance is used, on day ${String(snapshot.month.daysElapsed)} of ${String(snapshot.month.daysInMonth)}.`;
+
+      // Every notification carries an action; bare information on a timer is
+      // what gets an extension muted.
+      void vscode.window
+        .showWarningMessage(headline, 'Show breakdown', 'Open dashboard')
+        .then((choice) => {
+          if (choice === 'Show breakdown') void this.showBreakdown();
+          if (choice === 'Open dashboard') void openDashboard();
+        });
+      return;
+    }
+  }
+
   private renderFailure(failure: CoreFailure): void {
     this.item.backgroundColor = undefined;
+    this.snapshot = undefined;
 
+    let panelMessage = 'TokenLens is unavailable.';
     switch (failure.kind) {
       case 'not-installed':
         this.item.text = '$(circle-slash) TokenLens not found';
         this.item.tooltip = `\`${failure.command}\` is not on PATH. Install the core binary, or set \`tokenlens.binaryPath\`.`;
+        panelMessage = `${failure.command} is not on PATH.`;
         break;
       case 'no-workspace':
         this.item.text = '$(circle-slash) TokenLens';
         this.item.tooltip = 'Open a folder — the ledger is per workspace.';
+        panelMessage = 'Open a folder — the ledger is per workspace.';
         break;
       case 'no-data':
         this.item.text = '$(graph) TokenLens: no spend yet';
         this.item.tooltip = 'No Copilot requests have been recorded in this workspace yet.';
+        panelMessage = 'No Copilot requests recorded here yet.';
+        break;
+      case 'schema-mismatch':
+        // Rendering whichever fields happen to be recognised would be worse
+        // than saying the two halves no longer match.
+        this.item.text = '$(circle-slash) TokenLens: update needed';
+        this.item.tooltip = `The core binary speaks HUD schema ${String(failure.found)}; this extension understands ${String(failure.expected)}. Update the extension.`;
+        panelMessage = 'The extension and the core binary are different versions.';
         break;
       default:
         this.item.text = '$(circle-slash) TokenLens';
         this.item.tooltip = `The core binary did not answer: ${failure.detail}`;
+        panelMessage = failure.detail;
         break;
     }
+
+    this.panel.update(undefined, panelMessage);
 
     const signature = `${failure.kind}:${'detail' in failure ? failure.detail : ''}`;
     const alreadyReported = this.lastReportedFailure === signature;
     this.lastReportedFailure = signature;
-    void this.context.globalState.update('tokenlens.lastFailure', signature);
 
     if (failure.kind === 'not-installed' && !alreadyReported) {
       void vscode.window
@@ -242,45 +342,101 @@ class Hud implements vscode.Disposable {
     }
   }
 
-  /** D7.2 / D7.3 — what the spend is made of, and how old the longest chat is. */
+  /** D7.2 / D7.3 — what the spend is made of, and what continuing will cost. */
   async showBreakdown(): Promise<void> {
     if (!this.snapshot) await this.refresh();
-    if (!this.snapshot) {
+    const snapshot = this.snapshot;
+    if (!snapshot) {
       await vscode.window.showInformationMessage('TokenLens has no figures to show yet.');
       return;
     }
 
-    const { ledger } = this.snapshot;
-    const items: vscode.QuickPickItem[] = ledger.byModel.slice(0, 8).map((model) => ({
+    const items: vscode.QuickPickItem[] = snapshot.topModels.map((model) => ({
       label: model.model,
-      description: `${formatCredits(model.credits)} credits`,
-      detail:
-        `${String(model.requestCount)} request(s) — ` +
-        `${(model.credits / Math.max(1, model.requestCount)).toFixed(1)} credits per request`,
+      description: `${credits(model.credits)} cr · ${money(model.usd)}`,
+      detail: `${String(model.requests)} request(s) — ${credits(model.creditsPerRequest)} credits each`,
     }));
 
-    const longest = [...ledger.bySession].sort((a, b) => b.requestCount - a.requestCount)[0];
-    if (longest) {
+    const best = snapshot.advice.substitutions[0];
+    if (best !== undefined) {
+      items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
+      items.push({
+        label: `$(lightbulb) ${best.from} → ${best.to}`,
+        description: `would have saved ${money(best.savedUsd)} all time`,
+        detail:
+          `Priced from ${String(best.targetSampleSize)} measured requests on ${best.to}. ` +
+          'Assumes the cheaper model would have done the job — that is a counterfactual, not a measurement.',
+      });
+    }
+
+    if (snapshot.session?.nextTurn) {
+      const next = snapshot.session.nextTurn;
       items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
       items.push({
         label: NEW_CHAT_LABEL,
-        description: `${String(longest.requestCount)} turns · ${formatCredits(longest.credits)} credits`,
+        description: `${String(snapshot.session.turns)} turns · ${money(snapshot.session.usd)} so far`,
         detail:
-          'Every turn re-sends the whole history, so a long chat costs more per turn than a short one. ' +
-          'Pick this to start fresh.',
+          `The next turn projects at ${money(next.usd)} — ${multiple(next.multipleOfFreshTurn)} what a fresh chat's ` +
+          `first turn costs, measured over ${String(next.sampleSize)} turns. Pick this to start fresh.`,
       });
     }
 
     const picked = await vscode.window.showQuickPick(items, {
-      title: `TokenLens — ${formatCredits(ledger.totalCredits)} credits over ${String(ledger.requestCount)} requests`,
-      placeHolder: 'Spend by model',
+      title: `TokenLens — ${credits(snapshot.month.credits)} credits this month · ${money(snapshot.month.usd)}`,
+      placeHolder: snapshot.scope,
     });
 
     if (picked?.label === NEW_CHAT_LABEL) await startFreshChat();
   }
+
+  /** What is in force, and which file set it — the same answer `tokenlens config` gives. */
+  async showSettings(): Promise<void> {
+    await this.syncSettings();
+    const settings = this.settings;
+    if (!settings) {
+      await vscode.window.showInformationMessage(
+        'TokenLens could not read its settings. Check that the core binary is installed.',
+      );
+      return;
+    }
+
+    const items: vscode.QuickPickItem[] = Object.entries(settings.sources).map(([key, source]) => ({
+      label: key,
+      description: String(settings.effective[key] ?? '(not set)'),
+      detail: `set by ${SOURCE_LABEL[source] ?? source}`,
+    }));
+
+    items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
+    items.push({
+      label: EDIT_SETTINGS_LABEL,
+      detail: 'Settings are shared: the dashboard writes them, the CLI and this HUD both follow.',
+    });
+
+    const picked = await vscode.window.showQuickPick(items, {
+      title: 'TokenLens — settings in force',
+      placeHolder: settings.overriddenByEnv ?? 'Shared by the CLI, dashboard and this extension',
+    });
+
+    if (picked?.label === EDIT_SETTINGS_LABEL) await openDashboard();
+  }
 }
 
-const NEW_CHAT_LABEL = '$(comment-discussion) Longest conversation';
+const NEW_CHAT_LABEL = '$(comment-discussion) Start a fresh chat';
+const EDIT_SETTINGS_LABEL = '$(gear) Edit these in the dashboard';
+
+/** The workspace folder containing the active editor, when there is one. */
+function activeEditorRoot(): string | undefined {
+  const document = vscode.window.activeTextEditor?.document;
+  if (document === undefined) return undefined;
+  return vscode.workspace.getWorkspaceFolder(document.uri)?.uri.fsPath;
+}
+
+const SOURCE_LABEL: Readonly<Record<string, string>> = {
+  env: 'an environment variable',
+  'project-config': './.tokenlens/config.json',
+  'user-config': '~/.tokenlens/config.json',
+  default: 'the built-in default',
+};
 
 /** D7.3 — one click from noticing a chat is expensive to starting a cheap one. */
 async function startFreshChat(): Promise<void> {
@@ -318,8 +474,4 @@ async function openDashboard(): Promise<void> {
   const terminal = vscode.window.createTerminal({ name: 'TokenLens dashboard', cwd });
   terminal.sendText(`${binary} dashboard`);
   terminal.show();
-}
-
-function formatCredits(value: number): string {
-  return value.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }

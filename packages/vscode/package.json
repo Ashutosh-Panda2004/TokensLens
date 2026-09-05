@@ -1,18 +1,56 @@
 {
   "name": "tokenlens-vscode",
   "displayName": "TokenLens",
-  "description": "Live Copilot credit HUD, pre-flight cost estimate and session-age indicator. A thin client over the tokenlens binary.",
+  "description": "Local Copilot credit and token analytics with daily, weekly and monthly charts, budget forecasts, and session cost guidance.",
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
   "publisher": "tokenlens",
+  "preview": true,
+  "pricing": "Free",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#17191d",
+    "theme": "dark"
+  },
+  "homepage": "https://github.com/Ashutosh-Panda2004/TokensLens#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ashutosh-Panda2004/TokensLens.git",
+    "directory": "packages/vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/Ashutosh-Panda2004/TokensLens/issues"
+  },
+  "keywords": [
+    "copilot",
+    "credits",
+    "tokens",
+    "cost",
+    "finops",
+    "analytics"
+  ],
   "engines": {
     "vscode": "^1.90.0",
     "node": ">=20"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Visualization"
   ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "capabilities": {
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "TokenLens requires a local filesystem and the TokenLens core binary."
+    },
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "TokenLens starts a configured local binary and reads local VS Code journal metadata."
+    }
+  },
   "main": "./dist/extension.js",
   "activationEvents": [
     "onStartupFinished"
@@ -23,7 +61,7 @@
         {
           "id": "tokenlens",
           "title": "TokenLens",
-          "icon": "$(graph)"
+          "icon": "media/activity.svg"
         }
       ]
     },
@@ -54,12 +92,14 @@
       {
         "command": "tokenlens.refresh",
         "title": "Refresh credit figures",
-        "category": "TokenLens"
+        "category": "TokenLens",
+        "icon": "$(refresh)"
       },
       {
         "command": "tokenlens.openDashboard",
         "title": "Open dashboard",
-        "category": "TokenLens"
+        "category": "TokenLens",
+        "icon": "$(dashboard)"
       },
       {
         "command": "tokenlens.showBreakdown",
@@ -104,13 +144,13 @@
             "Override: Copilot Enterprise."
           ],
           "default": "",
-          "markdownDescription": "Overrides the Copilot plan set in `.tokenlens/config.json`. Leave empty to inherit the shared setting \u2014 set it in the dashboard under Settings instead, so every surface agrees."
+          "markdownDescription": "Overrides the Copilot plan set in `.tokenlens/config.json`. Leave empty to inherit the shared setting — set it in the dashboard under Settings instead, so every surface agrees."
         },
         "tokenlens.refreshSeconds": {
           "type": "number",
           "default": 300,
           "minimum": 30,
-          "markdownDescription": "Safety-net poll interval. TokenLens watches the chat journals and refreshes within seconds of a turn finishing, so this rarely needs lowering \u2014 each poll starts the core binary, which is not free."
+          "markdownDescription": "Safety-net poll interval. TokenLens watches the chat journals and refreshes within seconds of a turn finishing, so this rarely needs lowering — each poll starts the core binary, which is not free."
         },
         "tokenlens.statusBar.metric": {
           "type": "string",
@@ -124,7 +164,7 @@
           ],
           "enumDescriptions": [
             "Remaining when a limit is set, spend and money when it is not.",
-            "Same as auto \u2014 remaining where that is meaningful.",
+            "Same as auto — remaining where that is meaningful.",
             "Credits and money spent this month.",
             "Credits and money spent in this workspace today.",
             "What the next turn of the longest conversation will cost.",
@@ -161,12 +201,17 @@
   },
   "scripts": {
     "build": "npm run clean && tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit",
-    "package": "vsce package --no-dependencies",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json",
+    "package": "npm run build && vsce package --no-dependencies",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "devDependencies": {
     "@types/vscode": "^1.90.0",
-    "tokenlens": "*"
+    "@vscode/vsce": "^3.9.2",
+    "@tokenslens/core": "*",
+    "vitest": "^1.6.1"
   }
 }

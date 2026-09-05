@@ -1,0 +1,8 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node", "vitest/globals"],
+    "verbatimModuleSyntax": false
+  },
+  "include": ["./**/*.ts", "../src/core.ts", "../src/history.ts", "../src/format.ts"]
+}

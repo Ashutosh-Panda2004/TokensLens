@@ -18,6 +18,13 @@
     // relaxed for everyone else.
     "verbatimModuleSyntax": false
   },
+  // The HUD payload types come from `@tokenslens/core`, resolved through its built
+  // `dist/index.d.ts` rather than mapped to its source. That is deliberate:
+  // this package is a *consumer* of core, so typechecking against the
+  // published declarations catches a type that was never exported from
+  // index.ts, which a source mapping would silently paper over. The cost is
+  // that core must be built first — which `npm run build` at the root already
+  // guarantees, since workspace order puts core ahead of this package.
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules"]
 }
