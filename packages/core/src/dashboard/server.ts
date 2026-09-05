@@ -4,10 +4,34 @@ import fastifyStatic from '@fastify/static';
 import type Database from 'better-sqlite3';
 import { registerApiRoutes } from './routes.js';
 import { resolveDashboardStaticRoot } from './static-root.js';
+import type { Allowance } from '../ledger/budget.js';
+import type { ScopeSelection, WorkspaceLocation } from '../scope/index.js';
+import type { DetectContextInputs } from '../waste/context.js';
+import type { SettingsStore } from './settings.js';
 
 export interface DashboardServerOptions {
   readonly db: Database.Database;
   readonly token: string;
+  /**
+   * The monthly allowance in force, already resolved from flag/env/config
+   * by the CLI. Omitted, the budget route falls back to the plan default
+   * and says so.
+   */
+  readonly allowance?: Allowance | undefined;
+  /** Workspace map, read once by the CLI so no request pays for it. */
+  readonly locations?: readonly WorkspaceLocation[] | undefined;
+  /** The scope the server was started in — the UI's initial selection. */
+  readonly scope?: ScopeSelection | undefined;
+  /** Git survival input for W7, collected by the CLI (detectors may not read disk). */
+  readonly detectInputs?: DetectContextInputs | undefined;
+  /** `defaultRange` from config — the range the UI opens on. */
+  readonly range?: string | undefined;
+  /**
+   * Enables the Settings page. Omitted, `/api/settings` returns 404 and the
+   * server has no write route at all — which is what the tests that assert
+   * "read-only" rely on.
+   */
+  readonly settings?: SettingsStore | undefined;
 }
 
 function extractSuppliedToken(request: FastifyRequest): string | undefined {
@@ -69,7 +93,15 @@ export function createDashboardServer(options: DashboardServerOptions): FastifyI
     }
   });
 
-  registerApiRoutes(app, options.db);
+  registerApiRoutes(app, options.db, {
+    allowance: options.allowance,
+    locations: options.locations,
+    scope: options.scope,
+    detectInputs: options.detectInputs,
+    range: options.range,
+    settings: options.settings,
+    token: options.token,
+  });
 
   app.register(fastifyStatic, {
     root: resolveDashboardStaticRoot(),

@@ -4,7 +4,8 @@ import type Database from 'better-sqlite3';
 import { openDatabase, saveTurnRecords } from '../src/store/database.js';
 import { createDashboardServer } from '../src/dashboard/server.js';
 import { generateDashboardToken } from '../src/dashboard/token.js';
-import { MONTHLY_ALLOWANCE } from '../src/ledger/budget.js';
+import { planAllowanceAt } from '../src/ledger/budget.js';
+import { createSettingsStore } from '../src/dashboard/settings.js';
 import type { TurnRecord } from '../src/model/turn-record.js';
 
 const TOKEN = 'test-token-aaaaaaaaaaaaaaaaaaaaaaa';
@@ -97,7 +98,7 @@ describe('dashboard server', () => {
 
     it('serves static assets without a token — the browser cannot attach one to <link>/<script>', async () => {
       const css = await app.inject({ method: 'GET', url: '/style.css' });
-      const js = await app.inject({ method: 'GET', url: '/app.js' });
+      const js = await app.inject({ method: 'GET', url: '/main.js' });
       expect(css.statusCode).toBe(200);
       expect(js.statusCode).toBe(200);
     });
@@ -149,7 +150,9 @@ describe('dashboard server', () => {
       });
       const body = response.json<{ plan: string; monthlyAllowance: number }>();
       expect(body.plan).toBe('business');
-      expect(body.monthlyAllowance).toBe(MONTHLY_ALLOWANCE.business);
+      // The figure in force, not the standard one: a promotional allowance
+      // would otherwise make this fail for the whole of its window.
+      expect(body.monthlyAllowance).toBe(planAllowanceAt('business').credits);
     });
 
     it('falls back to enterprise for an unrecognised plan, rather than erroring', async () => {
@@ -160,6 +163,32 @@ describe('dashboard server', () => {
       });
       expect(response.statusCode).toBe(200);
       expect(response.json<{ plan: string }>().plan).toBe('enterprise');
+    });
+
+    it('keeps a start-up --allowance flag ahead of the live settings store', async () => {
+      // The store re-reads config on every request so a Settings save takes
+      // effect without a restart. It only ever reports config-derived values
+      // though, so preferring it unconditionally discarded the flag the
+      // server was started with — every request then answered with an
+      // allowance the operator never asked for.
+      const flagged = createDashboardServer({
+        db,
+        token: TOKEN,
+        allowance: { plan: 'enterprise', credits: 5000, source: 'flag' },
+        settings: createSettingsStore(),
+      });
+      await flagged.ready();
+
+      const response = await flagged.inject({
+        method: 'GET',
+        url: '/api/budget',
+        headers: { authorization: `Bearer ${TOKEN}` },
+      });
+      const body = response.json<{ monthlyAllowance: number; allowanceSource: string }>();
+
+      expect(body.monthlyAllowance).toBe(5000);
+      expect(body.allowanceSource).toBe('flag');
+      await flagged.close();
     });
   });
 

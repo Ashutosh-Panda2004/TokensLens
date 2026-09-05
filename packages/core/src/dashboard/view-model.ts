@@ -1,4 +1,4 @@
-import type { BudgetForecast, CopilotPlan } from '../ledger/budget.js';
+import type { BudgetForecast, CopilotPlan, AllowanceSource } from '../ledger/budget.js';
 import { selectMonthToDateDays } from '../ledger/budget.js';
 import type {
   CostCentreSpend,
@@ -147,7 +147,10 @@ export function toLedgerView(summary: LedgerSummary): LedgerView {
 
 export interface BudgetView {
   readonly plan: CopilotPlan;
-  readonly monthlyAllowance: number;
+  /** `null` when no monthly limit is enforced. */
+  readonly monthlyAllowance: number | null;
+  readonly allowanceSource: AllowanceSource;
+  readonly unlimited: boolean;
   readonly monthToDateCredits: ProvenanceView;
   readonly daysElapsedInMonth: number;
   readonly daysInMonth: number;
@@ -175,6 +178,8 @@ export function toBudgetView(
   return {
     plan: forecast.plan,
     monthlyAllowance: forecast.monthlyAllowance,
+    allowanceSource: forecast.allowanceSource,
+    unlimited: forecast.unlimited,
     monthToDateCredits: provenanceView(
       forecast.monthToDateCredits,
       monthToDateMeasured,
