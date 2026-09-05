@@ -6,9 +6,17 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-lint-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -27,6 +35,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit production dependencies
+        if: matrix.node-version == '22.x'
+        run: npm run audit:production
+
       - name: Check formatting
         run: npm run format:check
 
@@ -39,5 +51,36 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Verify release metadata
+        run: npm run verify:release
+
+      - name: Hook performance gate
+        run: npm run test:performance -w @tokenslens/core
+
       - name: Test with coverage
         run: npm run test:coverage
+
+  package-extension:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build workspaces
+        run: npm run build
+
+      - name: Verify release metadata
+        run: npm run verify:release
+
+      - name: Package extension
+        run: npm run package -w tokenlens-vscode -- --out ../../tokenlens-vscode-ci.vsix
