@@ -1,5 +1,9 @@
 # TokenLens
 
+[![CI](https://github.com/Ashutosh-Panda2004/TokensLens/actions/workflows/ci.yml/badge.svg)](https://github.com/Ashutosh-Panda2004/TokensLens/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Ashutosh-Panda2004/TokensLens/actions/workflows/codeql.yml/badge.svg)](https://github.com/Ashutosh-Panda2004/TokensLens/actions/workflows/codeql.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-1467df.svg)](LICENSE)
+
 Measured GitHub Copilot credit ledger, waste attribution, and policy compiler for VS Code.
 
 TokenLens reads the billing telemetry VS Code already writes to local disk, decomposes every
@@ -7,8 +11,7 @@ credit into its five cost centres, attributes waste to named causes, simulates a
 adopt it, and compiles the result into a policy artefact your MDM/platform team deploys once —
 fleet-wide, with no developer action required.
 
-**Build plan:** ten phases, D0 through D9, tracked internally.
-**Current status:** **every phase, D0 through D10, is complete**, with the privacy rule (P7) enforced
+**Current status:** the complete D0 through D10 capability chain is implemented, with the privacy rule (P7) enforced
 across all of them. The full chain now runs end to end: measure the spend exactly, attribute the
 waste, price the fix, deploy it as a managed setting, intercept what configuration cannot reach,
 show the cost where the decision is made, prove the result against a randomised holdout, roll it up
@@ -19,43 +22,78 @@ across a fleet, and re-fit the policy when the fleet moves out from under it.
 One Node.js/TypeScript binary (`tokenlens`) that runs as a CLI, a local dashboard server, a
 runtime hook target, an MCP server, and a policy compiler — one codebase, one build, one version.
 **Not** a SaaS, a proxy, a daemon, or an agent. The core makes zero network calls and zero model
-calls; AI integration is deliberately excluded from everything except one opt-in, org-tier
-feature planned for Phase D9.
+calls. Optional organisation workflows produce aggregate-only bundles locally; sending or storing
+those bundles remains the operator's decision.
+
+The npm package is `@tokenslens/core`; installing or linking it exposes the `tokenlens` command.
+The unscoped `tokenlens` package name belongs to an unrelated project and is not a TokenLens
+distribution channel.
+
+## Open source and enterprise use
+
+The complete core and VS Code extension are available under the [MIT license](LICENSE). There is
+no reduced “community” binary, telemetry gate, or source-available feature switch. An individual
+can run TokenLens locally; a platform team can deploy the same deterministic core across a fleet.
+
+Enterprise capability comes from deployment and operating controls already in the open codebase:
+managed policy artefacts, aggregate-only organisation bundles, k-anonymity enforcement, holdouts,
+drift alerts, rollback paths, and offline audit exports. Commercial support, managed deployment,
+or hosted services may be offered separately without changing the license of this repository.
+See [ENTERPRISE.md](ENTERPRISE.md) for the maintained boundary and adoption checklist.
 
 ## Prerequisites
 
-| | |
-|---|---|
+|         |                                                     |
+| ------- | --------------------------------------------------- |
 | Node.js | ≥ 20 (developed against 24; CI covers 20 / 22 / 24) |
-| npm | ≥ 10 (workspaces support) |
+| npm     | ≥ 10 (workspaces support)                           |
 
-## Getting started
+## Install
 
-### 1. Install dependencies and build
+### CLI
 
-```powershell
-npm install
-npm run build
-npm test
-npm run lint
-```
-
-### 2. Set up the CLI as a global command
-
-Make `tokenlens` available in your terminal from anywhere:
+The public package installs the `tokenlens` command:
 
 ```powershell
-npm run cli:link
-```
-
-Verify it works:
-
-```powershell
+npm install --global @tokenslens/core
 tokenlens --version
 tokenlens --help
 ```
 
-### 3. Use in your VS Code workspace
+Until npm publishing is enabled, install the `tokenslens-core-*.tgz` attached to a GitHub release:
+
+```powershell
+npm install --global ./tokenslens-core-0.1.0.tgz
+```
+
+### VS Code extension
+
+Install the `tokenlens-vscode-*.vsix` from the same release:
+
+```powershell
+code --install-extension ./tokenlens-vscode-0.1.0.vsix
+```
+
+The extension requires the `tokenlens` command above, or an explicit path in
+`tokenlens.binaryPath`.
+
+### Build from source
+
+```powershell
+git clone https://github.com/Ashutosh-Panda2004/TokensLens.git
+cd TokensLens
+npm ci
+npm run build
+npm test
+npm run lint
+npm run cli:link
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a change.
+
+## Getting started
+
+### 1. Use in your VS Code workspace
 
 The CLI reads Copilot usage data from your local VS Code journals. To start:
 
@@ -73,41 +111,52 @@ tokenlens waste
 tokenlens dashboard
 ```
 
-### 4. Common workflows
+### 2. Common workflows
 
 **See where money went (start here):**
+
 ```powershell
 tokenlens ledger
 ```
+
 Shows credits spent per day, model, session, and cost centre (tools, context, inference).
 
 **Find structural inefficiencies:**
+
 ```powershell
 tokenlens waste
 tokenlens waste --explain W1
 ```
+
 Ranked waste patterns with recommended fixes.
 
 **Test a cost-saving policy before deploying:**
+
 ```powershell
 tokenlens simulate --all
 ```
+
 Replays your spending history under a proposed policy and shows savings.
 
 **Generate a policy for your team:**
+
 ```powershell
 tokenlens simulate --emit-policy > policy.yml
 tokenlens policy emit --out ./out
 ```
+
 Creates configuration files for Windows, Mac, and VS Code to deploy fleet-wide.
 
 **Check what's being spent right now (budget status):**
+
 ```powershell
 tokenlens budget
 ```
+
 Shows month-to-date spend vs allowance and projected month-end.
 
 **Prove a policy works (randomised holdout):**
+
 ```powershell
 # Split team in half: test vs control
 tokenlens holdout assign --roster team.csv
@@ -115,15 +164,17 @@ tokenlens holdout assign --roster team.csv
 # After 2–4 weeks
 tokenlens holdout analyse
 ```
+
 Measures if the policy saved money without hurting productivity.
 
-### 5. Set up the VS Code extension (optional)
+### 3. Build the VS Code extension from source (optional)
 
 The status-bar HUD shows cost estimates in real-time while you use Copilot:
 
 ```powershell
-# Build the extension
-npm run build -w tokenlens-vscode
+# Build both workspaces, then create the VSIX
+npm run build
+npm run package -w tokenlens-vscode
 
 # Install in VS Code
 code --install-extension packages/vscode/tokenlens-vscode-0.1.0.vsix
@@ -132,8 +183,11 @@ code --install-extension packages/vscode/tokenlens-vscode-0.1.0.vsix
 ```
 
 Once installed, you'll see cost feedback in the status bar when Copilot suggests code.
+Packaging requires Node.js 22 or newer because the current VSCE publishing toolchain resolves
+Node-22-only Azure dependencies. The shipped core and extension runtime remain compatible with
+Node.js 20.
 
-### 6. Configuration
+### 4. Configuration
 
 TokenLens stores settings in `.tokenlens/config.json`:
 
@@ -147,23 +201,27 @@ TokenLens stores settings in `.tokenlens/config.json`:
 Edit in the dashboard (http://localhost:7331) or directly in the file.
 
 **Environment variables:**
+
 - `TOKENLENS_HOME` – where to store data (default: `~/.tokenlens`)
 - `TOKENLENS_MONTHLY_ALLOWANCE` – override monthly budget from command line
 - `TOKENLENS_LOG_LEVEL` – set to `debug` for verbose output
 
-### 7. Troubleshooting
+### 5. Troubleshooting
 
 **Command not found: `tokenlens`**
+
 ```powershell
 npm run cli:link
 ```
 
 **No Copilot data showing:**
+
 - Make sure you've used Copilot in VS Code at least once
 - Check that `.tokenlens/ledger.sqlite3` exists in your home directory
 - Run `tokenlens ledger --verbose` for debug output
 
 **Dashboard won't open:**
+
 ```powershell
 # Start it manually on a different port
 tokenlens dashboard --port 8080
@@ -171,6 +229,7 @@ tokenlens dashboard --port 8080
 ```
 
 **Need to reset or start over:**
+
 ```powershell
 # Clear local data (careful—this deletes stored sessions)
 rm -r ~/.tokenlens
@@ -241,26 +300,26 @@ tokenlens org alerts --bundles ./bundles      # robust anomaly payload; posts no
 
 ## What's implemented
 
-| Phase | Component | File(s) |
-|---|---|---|
-| D0 | `Measured<T>` / `Modelled<T>` provenance types, with a footnote-enforcing renderer | `src/model/provenance.ts` |
-| D0 | Error taxonomy — loud failure, never a silent zero | `src/shared/errors.ts` |
-| D0 | Security baseline — path containment, safe git refs, prompt-injection-safe text fencing | `src/shared/safe.ts` |
-| D0 | Structured logger — stderr-only, keeping stdout clean for D6's hook contract | `src/shared/logger.ts` |
-| D0 | Architectural import-boundary test — no LLM import permitted in hooks/ledger/policy | `tests/arch.test.ts` |
-| D1 | Journal ingest with pinned schema, redaction and incremental skip | `src/ingest/` |
-| D1 | SQLite ledger, rate card derived from measured credits, budget forecast | `src/store/`, `src/ledger/` |
-| D2 | Local dashboard (Fastify + vanilla SPA) and JSON/HTML export | `src/dashboard/` |
-| D3 | Seven waste detectors; seven more declared undetectable **with stated blockers** | `src/waste/` |
-| D4 | Counterfactual replay engine, policy DSL, six levers, contract-ceiling guard | `src/simulate/` |
-| D5 | Channel detection, emitters for MDM / macOS / file-based / workspace / `.agent.md`, rollbacks | `src/policy/` |
-| D6 | Five runtime guards, fail-open dispatch, insistence-based auto-disable, hook config generator | `src/hooks/` |
-| D6 | MCP budget guard — hand-rolled JSON-RPC over stdio, no SDK dependency | `src/mcp/` |
-| D7 | Status-bar HUD, spend breakdown, one-click fresh chat — zero business logic | `packages/vscode/` |
-| D8 | Stratified randomised holdout, pre-registration hash, power/MDE, Benjamini–Hochberg, guardrails, auto-rollback, savings P&L | `src/holdout/` |
-| D9 | Manifest-audited sync bundle, fleet rollup with k-anonymity, OTel ingest, drift detection, robust anomaly alerts | `src/org/` |
-| D10 | Code survival, effort decomposition, displacement detection, staggered difference-in-differences | `src/outcomes/` |
-| P7 | Privacy enforcement — salted-hash identifiers, k-anonymity floor, a gate that throws before a report is written | `src/privacy/` |
+| Phase | Component                                                                                                                   | File(s)                     |
+| ----- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| D0    | `Measured<T>` / `Modelled<T>` provenance types, with a footnote-enforcing renderer                                          | `src/model/provenance.ts`   |
+| D0    | Error taxonomy — loud failure, never a silent zero                                                                          | `src/shared/errors.ts`      |
+| D0    | Security baseline — path containment, safe git refs, prompt-injection-safe text fencing                                     | `src/shared/safe.ts`        |
+| D0    | Structured logger — stderr-only, keeping stdout clean for D6's hook contract                                                | `src/shared/logger.ts`      |
+| D0    | Architectural import-boundary test — no LLM import permitted in hooks/ledger/policy                                         | `tests/arch.test.ts`        |
+| D1    | Journal ingest with pinned schema, redaction and incremental skip                                                           | `src/ingest/`               |
+| D1    | SQLite ledger, rate card derived from measured credits, budget forecast                                                     | `src/store/`, `src/ledger/` |
+| D2    | Local dashboard (Fastify + vanilla SPA) and JSON/HTML export                                                                | `src/dashboard/`            |
+| D3    | Seven waste detectors; seven more declared undetectable **with stated blockers**                                            | `src/waste/`                |
+| D4    | Counterfactual replay engine, policy DSL, six levers, contract-ceiling guard                                                | `src/simulate/`             |
+| D5    | Channel detection, emitters for MDM / macOS / file-based / workspace / `.agent.md`, rollbacks                               | `src/policy/`               |
+| D6    | Five runtime guards, fail-open dispatch, insistence-based auto-disable, hook config generator                               | `src/hooks/`                |
+| D6    | MCP budget guard — hand-rolled JSON-RPC over stdio, no SDK dependency                                                       | `src/mcp/`                  |
+| D7    | Status-bar HUD, spend breakdown, one-click fresh chat — zero business logic                                                 | `packages/vscode/`          |
+| D8    | Stratified randomised holdout, pre-registration hash, power/MDE, Benjamini–Hochberg, guardrails, auto-rollback, savings P&L | `src/holdout/`              |
+| D9    | Manifest-audited sync bundle, fleet rollup with k-anonymity, OTel ingest, drift detection, robust anomaly alerts            | `src/org/`                  |
+| D10   | Code survival, effort decomposition, displacement detection, staggered difference-in-differences                            | `src/outcomes/`             |
+| P7    | Privacy enforcement — salted-hash identifiers, k-anonymity floor, a gate that throws before a report is written             | `src/privacy/`              |
 
 Everything above is deterministic: zero network calls, zero model calls, zero telemetry egress.
 
@@ -272,3 +331,6 @@ is never presented as a measurement, and failures are always loud.
 ## License
 
 [MIT](LICENSE)
+
+Security reports should follow [SECURITY.md](SECURITY.md). Contributions are welcome under
+[CONTRIBUTING.md](CONTRIBUTING.md) and the project [Code of Conduct](CODE_OF_CONDUCT.md).
