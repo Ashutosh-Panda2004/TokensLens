@@ -4,25 +4,36 @@
   "private": true,
   "description": "TokenLens monorepo — the tokenlens CLI/core package and its companion VS Code extension.",
   "type": "module",
+  "homepage": "https://github.com/Ashutosh-Panda2004/TokensLens#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ashutosh-Panda2004/TokensLens.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Ashutosh-Panda2004/TokensLens/issues"
+  },
   "workspaces": [
     "packages/*"
   ],
   "license": "MIT",
   "engines": {
-    "node": ">=20"
+    "node": ">=20",
+    "npm": ">=10"
   },
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "dev": "npm run dev -w tokenlens",
-    "test": "npm run test --workspaces --if-present",
-    "test:watch": "npm run test:watch -w tokenlens",
+    "dev": "npm run dev -w @tokenslens/core",
+    "test": "npm run test --workspaces --if-present && npm run test:performance -w @tokenslens/core",
+    "test:watch": "npm run test:watch -w @tokenslens/core",
     "test:coverage": "npm run test:coverage --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "cli:link": "npm run build -w tokenlens && npm link -w tokenlens",
-    "cli:unlink": "npm rm -g tokenlens",
+    "verify:release": "node scripts/verify-release.mjs",
+    "audit:production": "npm audit --omit=dev --audit-level=moderate",
+    "cli:link": "npm run build -w @tokenslens/core && npm link -w @tokenslens/core",
+    "cli:unlink": "npm rm -g @tokenslens/core",
     "clean": "npm run clean --workspaces --if-present"
   },
   "devDependencies": {

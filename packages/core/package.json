@@ -1,11 +1,27 @@
 {
-  "name": "tokenlens",
+  "name": "@tokenslens/core",
   "version": "0.1.0",
-  "private": true,
   "description": "Measured GitHub Copilot credit ledger, waste attribution, and policy compiler for VS Code.",
   "type": "module",
+  "keywords": [
+    "github-copilot",
+    "ai-cost",
+    "token-usage",
+    "finops",
+    "vscode",
+    "developer-tools"
+  ],
+  "homepage": "https://github.com/Ashutosh-Panda2004/TokensLens#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ashutosh-Panda2004/TokensLens.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/Ashutosh-Panda2004/TokensLens/issues"
+  },
   "bin": {
-    "tokenlens": "./dist/cli/index.js"
+    "tokenlens": "dist/cli/index.js"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -19,27 +35,34 @@
   },
   "files": [
     "dist",
+    "!dist/**/*.map",
     "README.md"
   ],
   "engines": {
     "node": ">=20"
   },
   "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "npm run clean && tsup && node scripts/copy-static.mjs",
     "dev": "tsup --watch",
-    "test": "vitest run",
+    "test": "vitest run --exclude tests/hooks.performance.test.ts",
+    "test:performance": "vitest run tests/hooks.performance.test.ts --pool forks --maxWorkers 1 --minWorkers 1",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage --exclude tests/hooks.performance.test.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests",
+    "prepublishOnly": "node ../../scripts/verify-release.mjs && node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsup && node scripts/copy-static.mjs && vitest run --exclude tests/hooks.performance.test.ts && vitest run tests/hooks.performance.test.ts --pool forks --maxWorkers 1 --minWorkers 1",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
     "@fastify/static": "^10.1.2",
     "better-sqlite3": "^13.0.2",
     "commander": "^12.1.0",
-    "fastify": "^5.11.0",
+    "fastify": "^5.12.1",
     "open": "^11.0.0",
     "yaml": "^2.9.0"
   },
