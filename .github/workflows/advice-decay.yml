@@ -1,0 +1,65 @@
+name: Advice catalogue decay
+
+# D11 §6.2 — the *only* automation permitted anywhere near the catalogue.
+#
+# It notices decay and opens an issue. It never edits the dataset, never opens a
+# pull request, never adds an entry, and never promotes one. That boundary is the
+# whole point: while this feature was being designed, agent-collected repository
+# metadata produced three plausible-looking errors — a wrong owner, an
+# implausible star count, a second wrong owner — none of which any schema check
+# or lint rule would have caught, and one of which would have sent a developer to
+# the wrong repository. Automated collection is therefore not admissible as a
+# source of truth for identity fields. It is admissible for exactly one thing:
+# telling a human that something needs looking at.
+#
+# It also lives here rather than in packages/core, so the shipped binary contains
+# no code capable of fetching anything. `arch.test.ts` enforces that half.
+
+on:
+  schedule:
+    # Weekly, Monday morning UTC. Cadence matches the SLA in D11 §6.4.
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-decay:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The script reads the catalogue from the built package rather than
+      # re-parsing the TypeScript source, so the dataset it checks is exactly the
+      # one the binary ships.
+      - name: Build
+        run: npm run build
+
+      - name: Compare recorded upstream activity against GitHub
+        id: decay
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/advice-decay.mjs
+
+      - name: Open an issue when an entry has decayed
+        if: steps.decay.outputs.stale == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: 'Advice catalogue: ${{ steps.decay.outputs.count }} entr(y/ies) need re-verification'
+        run: |
+          gh issue create \
+            --title "$TITLE" \
+            --label "advice-catalogue" \
+            --body-file decay-report.md
