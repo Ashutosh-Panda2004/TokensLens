@@ -12,6 +12,7 @@ export type TokenLensErrorCode =
   | 'UNSAFE_PATH'
   | 'UNSAFE_REF'
   | 'CONFIG'
+  | 'PORT_UNAVAILABLE'
   | 'NOT_IMPLEMENTED';
 
 export interface TokenLensErrorOptions {
@@ -234,15 +235,51 @@ export class UnsafeRefError extends TokenLensError<{ candidate: string }> {
 }
 
 /**
- * A problem with the user-authored `.tokenlens/config.json`: either the
- * file exists but is not valid JSON, or it references an `env:VAR_NAME`
- * environment variable that is not set. Both must fail loudly — see
- * PLAN.md P5.
+ * The dashboard could not bind a port.
+ *
+ * Distinct from a config error because the file is fine — something else on
+ * the machine already owns the address. Carrying the ports actually tried
+ * matters: "7331 is busy" and "7331 through 7350 are all busy" call for
+ * different actions, and an unexplained failure reads as a TokenLens bug
+ * when it is usually a second dashboard the user forgot about.
+ */
+export class PortUnavailableError extends TokenLensError<{
+  port: number;
+  attempted: number;
+  explicit: boolean;
+}> {
+  readonly code = 'PORT_UNAVAILABLE' as const;
+
+  // See the comment on SchemaDriftError's constructor above.
+  // eslint-disable-next-line @typescript-eslint/no-useless-constructor
+  constructor(
+    message: string,
+    context: { port: number; attempted: number; explicit: boolean },
+    options?: TokenLensErrorOptions,
+  ) {
+    super(message, context, options);
+  }
+}
+
+/**
+ * A problem with the user-authored `.tokenlens/config.json`: the file
+ * exists but is not valid JSON, it references an `env:VAR_NAME`
+ * environment variable that is not set, or a declared value (such as the
+ * monthly allowance) cannot be read as the kind of thing it must be. All
+ * must fail loudly — see PLAN.md P5.
  */
 export class ConfigError extends TokenLensError<{
-  reason: 'missing-env-var' | 'malformed-json' | 'experiment-integrity';
+  reason:
+    | 'missing-env-var'
+    | 'malformed-json'
+    | 'experiment-integrity'
+    | 'invalid-allowance'
+    | 'invalid-plan'
+    | 'invalid-scope';
   variableName?: string;
   filePath?: string;
+  source?: string;
+  value?: string;
 }> {
   readonly code = 'CONFIG' as const;
 
@@ -251,9 +288,17 @@ export class ConfigError extends TokenLensError<{
   constructor(
     message: string,
     context: {
-      reason: 'missing-env-var' | 'malformed-json' | 'experiment-integrity';
+      reason:
+        | 'missing-env-var'
+        | 'malformed-json'
+        | 'experiment-integrity'
+        | 'invalid-allowance'
+        | 'invalid-plan'
+        | 'invalid-scope';
       variableName?: string;
       filePath?: string;
+      source?: string;
+      value?: string;
     },
     options?: TokenLensErrorOptions,
   ) {

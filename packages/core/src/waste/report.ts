@@ -1,8 +1,9 @@
 import type Database from 'better-sqlite3';
 import { buildDetectContext } from './context.js';
-import { DETECTORS, UNAVAILABLE_CLASSES } from './registry.js';
+import { DETECTORS, UNAVAILABLE_CLASSES, conditionallyUnavailable } from './registry.js';
 import { mayIncludeEntityList } from '../privacy/guard.js';
 import { shortId } from '../privacy/identifiers.js';
+import type { DetectContextInputs } from './context.js';
 import type { PrivacyContext } from '../privacy/scope.js';
 import type { Evidence, UnavailableClass, WasteFinding } from './types.js';
 
@@ -90,12 +91,18 @@ export interface WasteReport {
  * Detector failures are contained: one detector throwing must not lose the
  * other six findings, so each runs independently and a thrown error becomes
  * a visible omission rather than a crashed report.
+ *
+ * `inputs` carries the two things a detector cannot fetch for itself — commit
+ * history for W7, the organisation rollup for W8. Omitting them is normal and
+ * costs nothing but those two classes, each of which then reports *why* it
+ * could not run rather than reporting zero.
  */
 export function buildWasteReport(
   db: Database.Database,
   privacy: PrivacyContext = DEFAULT_REPORT_PRIVACY,
+  inputs: DetectContextInputs = {},
 ): WasteReport {
-  const ctx = buildDetectContext(db);
+  const ctx = buildDetectContext(db, inputs);
 
   const findings: WasteFinding[] = [];
   const failed: UnavailableClass[] = [];
@@ -121,7 +128,7 @@ export function buildWasteReport(
 
   return {
     findings,
-    unavailable: [...UNAVAILABLE_CLASSES, ...failed],
+    unavailable: [...UNAVAILABLE_CLASSES, ...conditionallyUnavailable(ctx), ...failed],
     totalLedgerCredits,
     attributedCredits,
     attributedShare,

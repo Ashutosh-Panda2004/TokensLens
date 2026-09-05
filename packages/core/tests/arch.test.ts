@@ -81,6 +81,45 @@ const FORBIDDEN_PACKAGES: readonly {
     reason:
       'The budget-guard MCP server speaks stdio to a local agent and has no reason to open a socket.',
   },
+  {
+    fromPrefix: 'src/advice',
+    packages: [
+      'node:http',
+      'node:https',
+      'node:net',
+      'node:tls',
+      'node:dgram',
+      'http',
+      'https',
+      'undici',
+      'axios',
+      'node-fetch',
+    ],
+    reason:
+      'D11: the advice catalogue is a compiled-in dataset, never a live lookup. Freshness is a ' +
+      'CI concern that opens an issue; it is not a reason for the binary to acquire the ability ' +
+      'to fetch. Local-only is a property here, not a promise.',
+  },
+  {
+    fromPrefix: 'src/contribute',
+    packages: [
+      'node:http',
+      'node:https',
+      'node:net',
+      'node:tls',
+      'node:dgram',
+      'http',
+      'https',
+      'undici',
+      'axios',
+      'node-fetch',
+    ],
+    reason:
+      'The sharing feature is the one place a network call would be most tempting and most ' +
+      'damaging: it is the module whose whole purpose is data leaving, so it is the module ' +
+      'whose inability to send it must be checkable. A contribution is written to a local ' +
+      'outbox and stops; transport is a separate act the user can read before performing.',
+  },
 ];
 
 /** `fetch` needs no import, so the ban has to be checked in the source text too. */

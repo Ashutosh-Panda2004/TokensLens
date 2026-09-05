@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { detectDisplacement, type DisplacementReport } from '../src/outcomes/displacement.js';
 import { measureDurability, DAY_MS } from '../src/outcomes/durability.js';
 import { readGitHistory, isGitRepository } from '../src/outcomes/git.js';
+import { hashPath } from '../src/ingest/redact.js';
 import { buildPanel } from '../src/outcomes/report.js';
 import type { CommitRecord, FileChange, GitRunner } from '../src/outcomes/git.js';
 
@@ -209,7 +210,10 @@ describe('git history reading', () => {
   it('passes through the window and limit it was asked for', async () => {
     let captured: readonly string[] = [];
     const capture: GitRunner = (args) => {
-      if (!args.includes('--grep=This reverts commit')) captured = args;
+      // Three git invocations now: the log, the revert grep, and the
+      // `rev-parse` that finds the repository root. Only the first carries the
+      // window and the limit.
+      if (args[0] === 'log' && !args.includes('--grep=This reverts commit')) captured = args;
       return Promise.resolve('');
     };
 
@@ -221,6 +225,23 @@ describe('git history reading', () => {
 
     expect(captured.join(' ')).toContain('--since=2026-01-01T00:00:00.000Z');
     expect(captured.join(' ')).toContain('-n500');
+  });
+
+  it('hashes a commit path to the same value the journal would produce', async () => {
+    // The defect D12 found: git emits repository-relative POSIX paths and the
+    // journal records absolute, often Windows-shaped ones. Two hashes for one
+    // file, and a join that could never match — invisibly, because the hashes
+    // are opaque.
+    const log = `${RECORD}aaa1111${FIELD}p${FIELD}dev@x.io${FIELD}1750000000${FIELD}Fix\n5\t1\tsrc/a.ts\n`;
+    const withRoot: GitRunner = (args) =>
+      Promise.resolve(args[0] === 'rev-parse' ? 'C:/Users/me/proj\n' : log);
+
+    const commits = await readGitHistory({ cwd: '.' }, 'salt', withRoot);
+
+    expect(commits[0]?.files[0]?.pathHash).toBe(hashPath('c:\\Users\\me\\proj\\src\\a.ts', 'salt'));
+    expect(commits[0]?.files[0]?.pathHash).toBe(
+      hashPath('file:///c%3A/Users/me/proj/src/a.ts', 'salt'),
+    );
   });
 
   it('reports a directory that is not a repository as one, without throwing', async () => {

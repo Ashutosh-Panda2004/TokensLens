@@ -12,7 +12,7 @@ describe('createProgram', () => {
     expect(program.version()).toBe(VERSION);
   });
 
-  it('registers every roadmap command, plus the Phase D1–D9 commands that are no longer stubs', () => {
+  it('registers every roadmap command, plus the Phase D1–D11 commands that are no longer stubs', () => {
     const program = createProgram();
     const registered = program.commands.map((command) => command.name()).sort();
     const expected = [
@@ -31,11 +31,17 @@ describe('createProgram', () => {
       'mcp',
       'holdout',
       'org',
+      'advise',
+      'projects',
+      'config',
+      'contribute',
+      'hud',
+      'report',
     ].sort();
     expect(registered).toEqual(expected);
   });
 
-  it('the Phase D1–D9 commands are real — they do not throw NotImplementedError', () => {
+  it('the Phase D1–D11 commands are real — they do not throw NotImplementedError', () => {
     const program = createProgram();
     const commandNames = program.commands.map((command) => command.name());
     for (const name of [
@@ -53,6 +59,7 @@ describe('createProgram', () => {
       'mcp',
       'holdout',
       'org',
+      'advise',
     ]) {
       expect(commandNames).toContain(name);
     }

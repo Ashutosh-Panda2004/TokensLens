@@ -142,4 +142,37 @@ export const MIGRATIONS: readonly string[] = [
   DELETE FROM session;
   DELETE FROM ingested_file;
   `,
+
+  // v4 — Phase D12: path hashes are canonicalised before they are salted.
+  //
+  // W7 joins the journal's edits against git's commit history. Both sides
+  // already used the same per-install salt, which was assumed to be enough. It
+  // was not: the journal records the path the agent wrote — an absolute path,
+  // often with Windows separators, sometimes a `file:///` URI — while
+  // `git log --numstat` emits a repository-relative POSIX path. Same file, same
+  // salt, two different strings, and therefore two hashes that could never
+  // match.
+  //
+  // Because a salted hash is opaque, nothing about this was visible. The
+  // detector saw no overlap and correctly abstained, on a corpus that was full
+  // of exactly what it was built to find. A wrong answer wearing the costume of
+  // a cautious one is the specific failure P5 exists to prevent, so the fix is
+  // in `hashPath` itself rather than at either call site.
+  //
+  // Every stored `file_hash` and `target_file_hash` was produced by the old
+  // function and is now unjoinable with anything new. They are derived data,
+  // rebuilt from journals still on disk, so they go — leaving them would mean
+  // hashes from before and after the upgrade silently failing to match each
+  // other, which is the same defect one layer down.
+  `
+  DELETE FROM content_reference;
+  DELETE FROM compaction;
+  DELETE FROM edit;
+  DELETE FROM tool_call;
+  DELETE FROM round;
+  DELETE FROM cost_centre;
+  DELETE FROM request;
+  DELETE FROM session;
+  DELETE FROM ingested_file;
+  `,
 ];

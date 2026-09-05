@@ -161,6 +161,15 @@ function callTool(
       const plan: CopilotPlan =
         requested === 'business' ? 'business' : (options.plan ?? 'enterprise');
       const forecast = forecastBudget(ledger, plan, options.now);
+
+      if (forecast.monthlyAllowance === null) {
+        return [
+          `Plan ${forecast.plan}: no monthly limit is set, so there is no remaining balance to report.`,
+          `Spent so far this month: ${formatCredits(forecast.monthToDateCredits)} (day ${String(forecast.daysElapsedInMonth)} of ${String(forecast.daysInMonth)}).`,
+          `At the current rate this month ends at ${formatCredits(forecast.projectedMonthEndCredits)} credits.`,
+        ].join('\n');
+      }
+
       const remaining = forecast.monthlyAllowance - forecast.monthToDateCredits;
 
       return [

@@ -4,9 +4,14 @@ import { openDatabase, saveTurnRecords } from '../src/store/database.js';
 import { buildDetectContext } from '../src/waste/context.js';
 import { DETECTORS, UNAVAILABLE_CLASSES } from '../src/waste/registry.js';
 import { buildWasteReport } from '../src/waste/report.js';
+import { buildGitSurvival } from '../src/waste/git-survival.js';
+import { detectDuplication } from '../src/org/duplication.js';
 import { isModelled } from '../src/model/provenance.js';
+import type { DetectContextInputs } from '../src/waste/context.js';
+import type { CommitRecord } from '../src/outcomes/git.js';
+import type { QuestionObservation } from '../src/org/duplication.js';
 import type { CostCentre, TurnRecord } from '../src/model/turn-record.js';
-import type { WasteFinding } from '../src/waste/types.js';
+import type { DetectContext, WasteFinding } from '../src/waste/types.js';
 
 function centres(promptTokens: number): CostCentre[] {
   return [
@@ -207,16 +212,214 @@ function buildCorpus(scale: number): Database.Database {
     }),
   );
 
+  appendD12Corpus(records, scale);
+
   saveTurnRecords(db, records);
   return db;
+}
+
+// ---------------------------------------------------------------------------
+// D12 — the classes D3 declared undetectable. Each needs its own shape of
+// evidence, and each has to scale with `scale` so the variance test means
+// something for it too.
+// ---------------------------------------------------------------------------
+
+/** How many W7 edit-producing requests are abandoned at a given scale. */
+const abandonedAt = (scale: number): number => 12 * scale;
+/** How many survive. Fixed, so the *rate* moves with `scale` and not just the count. */
+const KEPT_REQUESTS = 12;
+const SHARED_QUESTIONS = 10;
+
+function appendD12Corpus(records: TurnRecord[], scale: number): void {
+  // W7 — edits on files git tracks, some committed afterwards and some not.
+  for (let i = 0; i < abandonedAt(scale); i++) {
+    records.push(
+      record({
+        requestId: `abandoned-${String(i)}`,
+        ts: 7_000 + i,
+        sessionId: `s-ab-${String(i)}`,
+        edits: [{ fileHash: `stale-file-${String(i)}`, editCount: 2, done: true }],
+      }),
+    );
+  }
+  for (let i = 0; i < KEPT_REQUESTS; i++) {
+    records.push(
+      record({
+        requestId: `kept-${String(i)}`,
+        ts: 7_500 + i,
+        sessionId: `s-kept-${String(i)}`,
+        edits: [{ fileHash: `kept-file-${String(i)}`, editCount: 2, done: true }],
+      }),
+    );
+  }
+
+  // W11 — files shown to the model, one in three of which it goes on to read.
+  for (let i = 0; i < 30 * scale; i++) {
+    const opened = i % 3 === 0;
+    records.push(
+      record({
+        requestId: `ref-${String(i)}`,
+        ts: 8_000 + i,
+        sessionId: `s-ref-${String(i)}`,
+        costCentres: [
+          { category: 'System', label: 'Tool Definitions', percentageOfPrompt: 20, tokens: 2_000 },
+          { category: 'User Context', label: 'Messages', percentageOfPrompt: 70, tokens: 7_000 },
+          { category: 'User Context', label: 'Files', percentageOfPrompt: 10, tokens: 1_000 },
+        ],
+        contentReferences: [
+          { fileHash: `ref-file-${String(i)}-a` },
+          { fileHash: `ref-file-${String(i)}-b` },
+        ],
+        rounds: opened
+          ? [
+              {
+                id: `ref-r-${String(i)}`,
+                ts: 8_000 + i,
+                retries: 0,
+                toolCalls: [
+                  {
+                    id: `ref-c-${String(i)}`,
+                    name: 'read_file',
+                    resultChars: 500,
+                    targetFileHash: `ref-file-${String(i)}-a`,
+                    targetStartLine: 1,
+                    targetEndLine: 20,
+                  },
+                ],
+              },
+            ]
+          : [],
+      }),
+    );
+  }
+
+  // W10 — standing instructions that were small and then were not. Both the
+  // number of requests and the size of the growth move with `scale`: holding
+  // the sample fixed made confidence saturate identically at both ends, which
+  // the variance test rightly refused to accept.
+  const instructionRequests = 60 + 20 * scale;
+  for (let i = 0; i < instructionRequests; i++) {
+    const grown = i >= 20;
+    records.push(
+      record({
+        requestId: `instr-${String(i)}`,
+        ts: 9_000 + i,
+        sessionId: `s-instr-${String(i)}`,
+        costCentres: [
+          { category: 'System', label: 'Tool Definitions', percentageOfPrompt: 20, tokens: 2_000 },
+          {
+            category: 'System',
+            label: 'System Instructions',
+            percentageOfPrompt: grown ? 30 : 10,
+            tokens: grown ? 1_000 + 400 * scale : 1_000,
+          },
+          { category: 'User Context', label: 'Messages', percentageOfPrompt: 50, tokens: 5_000 },
+        ],
+      }),
+    );
+  }
+
+  // W12 — summarisation running on the premium model.
+  for (let i = 0; i < 12; i++) {
+    records.push(
+      record({
+        requestId: `drift-${String(i)}`,
+        ts: 10_000 + i,
+        sessionId: `s-drift-${String(i)}`,
+        compactions: [
+          {
+            toolCallRoundId: `drift-${String(i)}`,
+            model: 'model-premium',
+            numRounds: 10,
+            durationMs: 60_000,
+            outcome: 'full/success',
+            contextLengthBefore: 100_000 * scale,
+          },
+        ],
+      }),
+    );
+  }
+}
+
+/**
+ * The commit history W7 joins against.
+ *
+ * `stale-file-*` are tracked but last committed long *before* the agent touched
+ * them; `kept-file-*` are committed afterwards. That distinction is the whole
+ * detector, so the fixture makes it explicit rather than incidental.
+ */
+function buildGitInput(scale: number): DetectContextInputs['git'] {
+  const commits: CommitRecord[] = [
+    {
+      sha: 'a'.repeat(40),
+      authorId: 'dev-1',
+      ts: 1,
+      parents: [],
+      isMerge: false,
+      files: Array.from({ length: abandonedAt(scale) }, (_, i) => ({
+        pathHash: `stale-file-${String(i)}`,
+        extension: 'ts',
+        added: 1,
+        deleted: 0,
+      })),
+    },
+    {
+      sha: 'b'.repeat(40),
+      authorId: 'dev-1',
+      // Far beyond every request, so nothing sits inside the settling window.
+      ts: 1_000_000_000,
+      parents: ['a'.repeat(40)],
+      isMerge: false,
+      files: Array.from({ length: KEPT_REQUESTS }, (_, i) => ({
+        pathHash: `kept-file-${String(i)}`,
+        extension: 'ts',
+        added: 1,
+        deleted: 0,
+      })),
+    },
+  ];
+  return buildGitSurvival(commits);
+}
+
+/** An organisation rollup with six developers — above the k-anonymity floor. */
+function buildOrgInput(scale: number): DetectContextInputs['org'] {
+  const observations: QuestionObservation[] = [];
+  for (let q = 0; q < 250; q++) {
+    observations.push({
+      questionHash: `unique-${String(q)}`,
+      askedBy: `dev-${String(q % 6)}`,
+      credits: 10,
+      ts: q,
+    });
+  }
+  for (let q = 0; q < SHARED_QUESTIONS * scale; q++) {
+    for (let developer = 0; developer < 6; developer++) {
+      observations.push({
+        questionHash: `shared-${String(q)}`,
+        askedBy: `dev-${String(developer)}`,
+        credits: 10,
+        ts: 1_000 + q,
+      });
+    }
+  }
+  return detectDuplication(observations);
+}
+
+function inputsFor(scale: number): DetectContextInputs {
+  return { git: buildGitInput(scale), org: buildOrgInput(scale) };
+}
+
+/** The full context every detector, including D12's, is exercised against. */
+function contextFor(scale: number): DetectContext {
+  return buildDetectContext(buildCorpus(scale), inputsFor(scale));
 }
 
 describe('detector variance — the test that catches a detector that does not detect', () => {
   // A detector whose output is identical for a small corpus and a corpus with
   // three times the waste is not measuring anything. This is audit defect
   // D-03, and it is the single most important test in the waste engine.
-  const small = buildDetectContext(buildCorpus(1));
-  const large = buildDetectContext(buildCorpus(3));
+  const small = contextFor(1);
+  const large = contextFor(3);
 
   it.each(DETECTORS.map((d) => [d.class, d] as const))(
     '%s produces different credits when the underlying waste changes',
@@ -251,7 +454,7 @@ describe('detector variance — the test that catches a detector that does not d
 });
 
 describe('finding quality invariants', () => {
-  const ctx = buildDetectContext(buildCorpus(2));
+  const ctx = contextFor(2);
   const findings: WasteFinding[] = DETECTORS.flatMap((detector) => detector.detect(ctx));
 
   it('produces at least one finding per available detector', () => {

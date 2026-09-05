@@ -91,9 +91,58 @@ export function deriveRateCard(samples: readonly RateCardSample[]): ModelRate[] 
   });
 }
 
-/** Looks up one model's rate, if the rate card has an entry for it. */
+/**
+ * Reduces a model identifier to the form every source can be compared in.
+ *
+ * The journal does not spell model ids consistently. A request records
+ * `claude-opus-4-6`; a compaction event on the *same model* records
+ * `claude-opus-4.6`. Nothing warns about it, because a lookup that finds
+ * nothing is indistinguishable from a model that has no rate — so W12 saw 86
+ * compactions, matched three of them, decided the sample was too thin and said
+ * nothing at all. The evidence was there; two spellings of one name hid it.
+ */
+export function canonicaliseModelId(model: string): string {
+  return model.toLowerCase().replace(/[._]/g, '-').replace(/-{2,}/g, '-');
+}
+
+/**
+ * A trailing release stamp: `-20251001`, or `-2026-04-23`.
+ *
+ * Deliberately this narrow. The journal sometimes names the dated snapshot and
+ * sometimes the floating alias for one model, and matching them is worth doing —
+ * but a looser rule that allowed any suffix would happily decide `gpt-5` and
+ * `gpt-5-5` were the same model, which is a wrong answer where the status quo
+ * was merely a missing one.
+ */
+const RELEASE_STAMP = /^(?:\d{6,8}|\d{4}-\d{2}-\d{2})$/;
+
+/**
+ * Looks up one model's rate, if the rate card has an entry for it.
+ *
+ * Three steps, widening only as far as each is defensible:
+ *
+ * 1. **Exact.** The common path, unchanged.
+ * 2. **Canonical.** Separator spellings of the same name.
+ * 3. **Dated snapshot.** `claude-haiku-4-5` against a card holding
+ *    `claude-haiku-4-5-20251001` — and *only* where exactly one entry matches.
+ *    Ambiguity yields nothing, because a rate attached to the wrong model is
+ *    worse than a rate that is missing and says so.
+ */
 export function findRate(rateCard: readonly ModelRate[], model: string): ModelRate | undefined {
-  return rateCard.find((entry) => entry.model === model);
+  const exact = rateCard.find((entry) => entry.model === model);
+  if (exact !== undefined) return exact;
+
+  const wanted = canonicaliseModelId(model);
+  const canonical = rateCard.find((entry) => canonicaliseModelId(entry.model) === wanted);
+  if (canonical !== undefined) return canonical;
+
+  const dated = rateCard.filter((entry) => {
+    const candidate = canonicaliseModelId(entry.model);
+    if (!candidate.startsWith(`${wanted}-`)) return false;
+    return RELEASE_STAMP.test(candidate.slice(wanted.length + 1));
+  });
+
+  return dated.length === 1 ? dated[0] : undefined;
 }
 
 /**

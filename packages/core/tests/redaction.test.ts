@@ -3,7 +3,12 @@ import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
-import { hashPath, loadOrCreateInstallSalt, saltFilePath } from '../src/ingest/redact.js';
+import {
+  canonicalisePath,
+  hashPath,
+  loadOrCreateInstallSalt,
+  saltFilePath,
+} from '../src/ingest/redact.js';
 import { parseJournalBuffer } from '../src/ingest/reader.js';
 import { normaliseJournal } from '../src/ingest/normalise.js';
 import { openDatabase, saveTurnRecords, getAllRequests } from '../src/store/database.js';
@@ -32,6 +37,39 @@ describe('hashPath', () => {
   it('never returns the raw path', () => {
     const raw = 'C:\\Users\\dev\\secret-project\\file.ts';
     expect(hashPath(raw, 'salt')).not.toContain(raw);
+  });
+});
+
+describe('canonicalisePath — the join key every cross-source detector depends on', () => {
+  const forms = [
+    'C:\\Users\\me\\proj\\src\\a.ts',
+    'c:/users/me/proj/src/a.ts',
+    'C:/Users/Me/Proj/Src/A.ts',
+    'file:///c%3A/Users/me/proj/src/a.ts',
+    'C:\\Users\\me\\proj\\\\src\\a.ts',
+  ];
+
+  it('reduces every spelling of one file to one key', () => {
+    // Until D12 these produced five different hashes, so a path from git and a
+    // path from the journal could never match — invisibly, because the hashes
+    // are opaque and the detector simply abstained.
+    const keys = new Set(forms.map((form) => canonicalisePath(form)));
+    expect(keys.size).toBe(1);
+  });
+
+  it('carries that through to the hash, which is what the tables store', () => {
+    const hashes = new Set(forms.map((form) => hashPath(form, 'salt')));
+    expect(hashes.size).toBe(1);
+  });
+
+  it('still distinguishes genuinely different files', () => {
+    expect(canonicalisePath('src/a.ts')).not.toBe(canonicalisePath('src/b.ts'));
+    expect(canonicalisePath('one/src/a.ts')).not.toBe(canonicalisePath('two/src/a.ts'));
+  });
+
+  it('leaves a malformed percent sequence usable rather than throwing', () => {
+    expect(() => canonicalisePath('src/100%-done.ts')).not.toThrow();
+    expect(canonicalisePath('src/100%-done.ts')).toContain('100%-done.ts');
   });
 });
 

@@ -7,6 +7,8 @@ import {
   type RateCardSample,
 } from './rate-card.js';
 import { measured, type Value } from '../model/provenance.js';
+import { sourceFileInScope, workspaceIdOfSourceFile, type ScopeSelection } from '../scope/types.js';
+import type { WorkspaceStats } from '../scope/tree.js';
 
 function toSamples(rows: readonly RequestRow[]): RateCardSample[] {
   return rows.map((row) => ({
@@ -105,9 +107,38 @@ export interface LedgerSummary {
  * complete figure, and `measuredCredits`/`modelledCredits` show how much
  * of it is which.
  */
-export function buildLedger(db: Database.Database): LedgerSummary {
-  const rows = getAllRequests(db);
-  const rateCard = deriveRateCard(toSamples(rows));
+/**
+ * Narrows which requests a ledger covers.
+ *
+ * `scope` is resolved by `src/scope` (which is the layer allowed to touch
+ * the filesystem) and arrives here as a plain set of workspace ids, so the
+ * ledger stays pure. `from`/`to` are inclusive `YYYY-MM-DD` UTC days.
+ */
+export interface LedgerQuery {
+  readonly scope?: ScopeSelection;
+  readonly from?: string;
+  readonly to?: string;
+}
+
+function inDateRange(day: string, query: LedgerQuery | undefined): boolean {
+  if (query?.from !== undefined && day < query.from) return false;
+  if (query?.to !== undefined && day > query.to) return false;
+  return true;
+}
+
+export function buildLedger(db: Database.Database, query?: LedgerQuery): LedgerSummary {
+  const allRows = getAllRequests(db);
+
+  // The rate card is deliberately derived from **every** request, not just
+  // the ones in scope. It is a calibration of what each model costs on this
+  // machine; narrowing it to one project would make the same request price
+  // differently depending on which folder the command was run from, and a
+  // small project might have no measured sample at all.
+  const rateCard = deriveRateCard(toSamples(allRows));
+
+  const rows = allRows.filter(
+    (row) => sourceFileInScope(row.sourceFile, query?.scope) && inDateRange(dayKey(row.ts), query),
+  );
 
   const byDayMap = new Map<
     string,
@@ -241,7 +272,12 @@ function aggregateCostCentres(
 
   for (const row of getAllCostCentres(db)) {
     const request = creditsByRequestId.get(row.requestId);
-    const requestCredits = request?.credits ?? 0;
+    // A cost centre whose request is outside the scope or date range is not
+    // ours to count. Adding its tokens with zero credits would inflate the
+    // token column while leaving the credit column right — a breakdown that
+    // silently disagrees with its own total.
+    if (request === undefined) continue;
+    const requestCredits = request.credits;
     const attributedCredits = (row.percentageOfPrompt / 100) * requestCredits;
 
     const bucket = byLabelMap.get(row.label) ?? {
@@ -253,7 +289,7 @@ function aggregateCostCentres(
     };
     bucket.tokens += row.tokens;
     bucket.credits += attributedCredits;
-    if (request?.isMeasured) bucket.measuredCredits += attributedCredits;
+    if (request.isMeasured) bucket.measuredCredits += attributedCredits;
     else bucket.modelledCredits += attributedCredits;
     bucket.requestCount += 1;
     byLabelMap.set(row.label, bucket);
@@ -262,4 +298,162 @@ function aggregateCostCentres(
   return [...byLabelMap.entries()]
     .map(([label, bucket]) => ({ label, ...bucket }))
     .sort((a, b) => b.tokens - a.tokens);
+}
+
+/** One named series over the shared day axis. Values align to `days` by index. */
+export interface TimeseriesBand {
+  readonly key: string;
+  readonly values: readonly number[];
+}
+
+export interface Timeseries {
+  readonly days: readonly string[];
+  /** Credits per day, split by model. */
+  readonly byModel: readonly TimeseriesBand[];
+  /** Credits per day, split by cost centre. */
+  readonly byCostCentre: readonly TimeseriesBand[];
+  readonly totals: readonly number[];
+  readonly requestCounts: readonly number[];
+}
+
+/**
+ * Per-day breakdowns, shaped for stacked charts.
+ *
+ * `buildLedger` already reports *totals* by day and by model, but never the
+ * two crossed — and the crossing is the whole question behind W12 and the
+ * routing lever: not "what does the fleet spend on premium models" but
+ * "is the premium share growing". A table of daily totals cannot show that;
+ * a stacked series can.
+ *
+ * Every band spans the full day axis, zero-filled, so a renderer can stack
+ * by index without reconciling ragged arrays — and a model that appears only
+ * in the last week still lines up with the first.
+ */
+export function buildTimeseries(db: Database.Database, query?: LedgerQuery): Timeseries {
+  const allRows = getAllRequests(db);
+  const rateCard = deriveRateCard(toSamples(allRows));
+
+  const rows = allRows.filter(
+    (row) => sourceFileInScope(row.sourceFile, query?.scope) && inDateRange(dayKey(row.ts), query),
+  );
+
+  const creditsByRequest = new Map<string, { day: string; credits: number }>();
+  const dayTotals = new Map<string, { credits: number; requests: number }>();
+  const modelByDay = new Map<string, Map<string, number>>();
+
+  for (const row of rows) {
+    const day = dayKey(row.ts);
+    const credits = creditsForRow(row, rateCard).value;
+    creditsByRequest.set(row.requestId, { day, credits });
+
+    const total = dayTotals.get(day) ?? { credits: 0, requests: 0 };
+    total.credits += credits;
+    total.requests += 1;
+    dayTotals.set(day, total);
+
+    const models = modelByDay.get(day) ?? new Map<string, number>();
+    models.set(row.model, (models.get(row.model) ?? 0) + credits);
+    modelByDay.set(day, models);
+  }
+
+  const centreByDay = new Map<string, Map<string, number>>();
+  for (const centre of getAllCostCentres(db)) {
+    const request = creditsByRequest.get(centre.requestId);
+    if (request === undefined) continue;
+    const attributed = (centre.percentageOfPrompt / 100) * request.credits;
+    const centres = centreByDay.get(request.day) ?? new Map<string, number>();
+    centres.set(centre.label, (centres.get(centre.label) ?? 0) + attributed);
+    centreByDay.set(request.day, centres);
+  }
+
+  const days = [...dayTotals.keys()].sort((a, b) => a.localeCompare(b));
+
+  const bandsFrom = (source: Map<string, Map<string, number>>): TimeseriesBand[] => {
+    const totalsByKey = new Map<string, number>();
+    for (const perDay of source.values()) {
+      for (const [key, value] of perDay) {
+        totalsByKey.set(key, (totalsByKey.get(key) ?? 0) + value);
+      }
+    }
+
+    return [...totalsByKey.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([key]) => ({
+        key,
+        values: days.map((day) => source.get(day)?.get(key) ?? 0),
+      }));
+  };
+
+  return {
+    days,
+    byModel: bandsFrom(modelByDay),
+    byCostCentre: bandsFrom(centreByDay),
+    totals: days.map((day) => dayTotals.get(day)?.credits ?? 0),
+    requestCounts: days.map((day) => dayTotals.get(day)?.requests ?? 0),
+  };
+}
+
+/**
+ * Per-workspace totals across the **whole** machine, for `tokenlens
+ * projects` and the dashboard's Projects view.
+ *
+ * Deliberately unscoped: its entire job is to show what every project cost
+ * so a reader can choose one. Requests whose stored path never carried a
+ * workspace id are grouped under `undefined` by the caller's own lookup
+ * failing, which is what feeds the unattributed bucket.
+ */
+export function buildWorkspaceStats(db: Database.Database): WorkspaceStats[] {
+  const rows = getAllRequests(db);
+  const rateCard = deriveRateCard(toSamples(rows));
+
+  const byWorkspace = new Map<
+    string,
+    {
+      credits: number;
+      measuredCredits: number;
+      requestCount: number;
+      firstTs: number;
+      lastTs: number;
+      creditsByModel: Map<string, number>;
+    }
+  >();
+
+  for (const row of rows) {
+    const workspaceId = workspaceIdOfSourceFile(row.sourceFile);
+    if (workspaceId === undefined) continue;
+
+    const creditsValue = creditsForRow(row, rateCard);
+    const credits = creditsValue.value;
+    const bucket = byWorkspace.get(workspaceId) ?? {
+      credits: 0,
+      measuredCredits: 0,
+      requestCount: 0,
+      firstTs: row.ts,
+      lastTs: row.ts,
+      creditsByModel: new Map<string, number>(),
+    };
+
+    bucket.credits += credits;
+    if (creditsValue.provenance.kind === 'measured') bucket.measuredCredits += credits;
+    bucket.requestCount += 1;
+    bucket.firstTs = Math.min(bucket.firstTs, row.ts);
+    bucket.lastTs = Math.max(bucket.lastTs, row.ts);
+    bucket.creditsByModel.set(row.model, (bucket.creditsByModel.get(row.model) ?? 0) + credits);
+    byWorkspace.set(workspaceId, bucket);
+  }
+
+  return [...byWorkspace.entries()]
+    .map(([workspaceId, bucket]) => {
+      const topModel = [...bucket.creditsByModel.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+      return {
+        workspaceId,
+        credits: bucket.credits,
+        measuredCredits: bucket.measuredCredits,
+        requestCount: bucket.requestCount,
+        firstTs: bucket.firstTs,
+        lastTs: bucket.lastTs,
+        ...(topModel !== undefined ? { topModel } : {}),
+      };
+    })
+    .sort((a, b) => b.credits - a.credits);
 }

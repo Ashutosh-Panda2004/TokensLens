@@ -14,6 +14,12 @@ import { registerOutcomesCommand } from './commands/outcomes.js';
 import { registerHookCommand, registerMcpCommand } from './commands/hook.js';
 import { registerHoldoutCommand } from './commands/holdout.js';
 import { registerOrgCommand } from './commands/org.js';
+import { registerAdviseCommand } from './commands/advise.js';
+import { registerProjectsCommand } from './commands/projects.js';
+import { registerConfigCommand } from './commands/config.js';
+import { registerContributeCommand } from './commands/contribute.js';
+import { registerHudCommand } from './commands/hud.js';
+import { registerReportCommand } from './commands/report.js';
 
 /**
  * Builds the commander program from scratch on every call — no shared
@@ -42,6 +48,21 @@ export function createProgram(): Command {
   registerVerifyCommand(program);
   registerBudgetCommand(program);
 
+  // Phase D13 — which project is this spend actually about?
+  registerProjectsCommand(program);
+
+  // Shared settings, read by the CLI, the dashboard and the extension alike.
+  registerConfigCommand(program);
+
+  // Opt-in anonymous aggregates. Produces a local file; uploads nothing.
+  registerContributeCommand(program);
+
+  // D14 — the single snapshot the VS Code HUD renders from.
+  registerHudCommand(program);
+
+  // A month of spend as Markdown, for a person or an assistant to analyse.
+  registerReportCommand(program);
+
   // Phase D2.
   registerDashboardCommand(program);
 
@@ -67,6 +88,9 @@ export function createProgram(): Command {
 
   // Phase D9.
   registerOrgCommand(program);
+
+  // Phase D11.
+  registerAdviseCommand(program);
 
   for (const roadmapCommand of ROADMAP_COMMANDS) {
     program

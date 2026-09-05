@@ -11,6 +11,22 @@ import {
 import { buildLedger } from '../ledger/ledger.js';
 import { deriveRateCard, estimateCredits } from '../ledger/rate-card.js';
 import type { DetectContext } from './types.js';
+import type { GitSurvival } from './git-survival.js';
+import type { DuplicationReport } from '../org/duplication.js';
+
+/**
+ * External inputs a detector cannot fetch for itself.
+ *
+ * D12 added two classes whose evidence lives outside the journal — W7 needs a
+ * commit history, W8 needs an organisation rollup. Both are read by the caller
+ * and passed in, so the guarantee that a detector "physically cannot reach the
+ * network or the filesystem" survives the addition rather than being quietly
+ * relaxed for two special cases.
+ */
+export interface DetectContextInputs {
+  readonly git?: GitSurvival;
+  readonly org?: DuplicationReport;
+}
 
 /**
  * Assembles the shared read-only view every detector runs against.
@@ -22,7 +38,10 @@ import type { DetectContext } from './types.js';
  * ledger total") would then be checking two different universes against
  * each other. One source of truth makes that test meaningful.
  */
-export function buildDetectContext(db: Database.Database): DetectContext {
+export function buildDetectContext(
+  db: Database.Database,
+  inputs: DetectContextInputs = {},
+): DetectContext {
   const requests = getAllRequests(db);
   const rateCard = deriveRateCard(
     requests.map((r) => ({
@@ -50,5 +69,7 @@ export function buildDetectContext(db: Database.Database): DetectContext {
     costCentres: getAllCostCentres(db),
     ledger: buildLedger(db),
     creditsByRequest,
+    ...(inputs.git !== undefined ? { git: inputs.git } : {}),
+    ...(inputs.org !== undefined ? { org: inputs.org } : {}),
   };
 }

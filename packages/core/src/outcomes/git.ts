@@ -29,6 +29,16 @@ const run = promisify(execFile);
  * the credit ledger already uses for tool-call targets. That is what makes
  * `outcomes` joinable to `waste` and `ledger` at all: the same file has the
  * same hash on both sides, and neither side ever stores the path.
+ *
+ * That was necessary and, on its own, not sufficient. `git log --numstat`
+ * emits paths **relative to the repository root**, while the journal records
+ * whatever the agent wrote — an absolute path, often with Windows separators.
+ * Same file, same salt, two different strings, so two different hashes and a
+ * join that could never match. D12 found this the only way it can be found:
+ * a detector that should have fired on an obviously abandoned corpus quietly
+ * reported nothing. Paths are therefore resolved against the repository root
+ * before hashing, and `hashPath` canonicalises separators, case and URI
+ * escaping on both sides.
  */
 export interface FileChange {
   /** Salted hash — the join key to `tool_call.target_file_hash`. */
@@ -122,7 +132,25 @@ export async function readGitHistory(
   const stdout = await runner(args, options.cwd);
   const bodies = await readRevertBodies(options, runner);
 
-  return parseGitLog(stdout, salt, bodies);
+  return parseGitLog(stdout, salt, bodies, await repositoryRoot(options.cwd, runner));
+}
+
+/**
+ * The repository root, so relative `--numstat` paths can be made absolute and
+ * therefore comparable with what the journal recorded.
+ *
+ * Falls back to `cwd` if git will not say. A wrong root produces no join rather
+ * than a wrong one — hashes either match or they do not, and there is no way
+ * for a mistaken prefix to make an unrelated file look edited.
+ */
+async function repositoryRoot(cwd: string, runner: GitRunner): Promise<string> {
+  try {
+    const stdout = await runner(['rev-parse', '--show-toplevel'], cwd);
+    const root = stdout.trim();
+    return root === '' ? cwd : root;
+  } catch {
+    return cwd;
+  }
 }
 
 /**
@@ -161,6 +189,8 @@ export function parseGitLog(
   stdout: string,
   salt: string,
   revertBodies: ReadonlyMap<string, string> = new Map(),
+  /** Repository root, prefixed onto each relative path before hashing. */
+  root = '',
 ): CommitRecord[] {
   const commits: CommitRecord[] = [];
 
@@ -175,7 +205,7 @@ export function parseGitLog(
     if (sha === undefined || email === undefined || epoch === undefined) continue;
 
     const parents = (parentList ?? '').trim() === '' ? [] : (parentList ?? '').trim().split(' ');
-    const files = parseNumstat(rest, salt);
+    const files = parseNumstat(rest, salt, root);
     const body = revertBodies.get(sha) ?? '';
     const revertsSha = REVERT_PATTERN.exec(`${subject ?? ''}\n${body}`)?.[1];
     const pullRequest = matchPullRequest(subject ?? '');
@@ -211,8 +241,9 @@ function matchPullRequest(subject: string): number | undefined {
  * binary asset is still a touched file for rework purposes even though its
  * size tells us nothing.
  */
-function parseNumstat(block: string, salt: string): FileChange[] {
+function parseNumstat(block: string, salt: string, root: string): FileChange[] {
   const files: FileChange[] = [];
+  const prefix = root === '' ? '' : `${root.replace(/[\\/]+$/, '')}/`;
 
   for (const line of block.split('\n')) {
     if (!line.trim()) continue;
@@ -223,7 +254,7 @@ function parseNumstat(block: string, salt: string): FileChange[] {
     if (path === undefined) continue;
 
     files.push({
-      pathHash: hashPath(path, salt),
+      pathHash: hashPath(`${prefix}${path}`, salt),
       extension: extensionOf(path),
       added: addedRaw === '-' ? 0 : Number.parseInt(addedRaw ?? '0', 10) || 0,
       deleted: deletedRaw === '-' ? 0 : Number.parseInt(deletedRaw ?? '0', 10) || 0,

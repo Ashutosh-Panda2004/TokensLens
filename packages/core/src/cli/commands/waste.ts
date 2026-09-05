@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { openLedgerForReading } from '../context.js';
+import { collectDetectInputs, openLedgerForReading } from '../context.js';
 import { buildMcpRoi, buildWasteReport } from '../../waste/report.js';
 import { printHeading, printJson, printLine, printTable } from '../output.js';
 import { isMeasured, isModelled } from '../../model/provenance.js';
@@ -54,7 +54,7 @@ export function registerWasteCommand(program: Command): void {
     .option('--explain <class>', 'print the full evidence chain for one class, e.g. W1')
     .action(async (options: WasteCommandOptions) => {
       const db = await openLedgerForReading();
-      const report = buildWasteReport(db, SELF);
+      const report = buildWasteReport(db, SELF, await collectDetectInputs());
 
       if (options.json) {
         printJson(report);

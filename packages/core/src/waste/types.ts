@@ -9,6 +9,8 @@ import type {
   ToolCallRow,
 } from '../store/database.js';
 import type { LedgerSummary } from '../ledger/ledger.js';
+import type { GitSurvival } from './git-survival.js';
+import type { DuplicationReport } from '../org/duplication.js';
 
 /**
  * The fourteen named waste classes (PLAN.md §18 / DEVELOPMENT-PLAN.md D3).
@@ -106,6 +108,22 @@ export interface DetectContext {
    * about what a request cost.
    */
   readonly creditsByRequest: ReadonlyMap<string, number>;
+  /**
+   * **D12 — external inputs, assembled by the caller.**
+   *
+   * Both are `undefined` by default, and a detector that needs one abstains
+   * rather than guessing when it is absent. They live here, pre-read, because
+   * the invariant above still holds: git is a subprocess and the org rollup is
+   * a synced file, and a detector must be able to reach neither. The caller
+   * does the impure work once; the detectors still see nothing but data.
+   */
+  readonly git?: GitSurvival;
+  /**
+   * Cross-developer duplication, from the D9 rollup. Absent on a single
+   * machine, which is not a defect but the finding: one laptop cannot see a
+   * question five people asked.
+   */
+  readonly org?: DuplicationReport;
 }
 
 export interface WasteDetector {
