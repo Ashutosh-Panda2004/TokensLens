@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { afterEach, describe, it, expect } from 'vitest';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildSimulationCorpus, record } from './fixtures/simulate-corpus.js';
@@ -12,6 +12,21 @@ import { verifyPolicy } from '../src/policy/verify.js';
 import { deriveAgents } from '../src/policy/agents.js';
 
 const NOW = new Date('2026-07-15T12:00:00Z');
+const workspaces: string[] = [];
+const databases: ReturnType<typeof openDatabase>[] = [];
+
+afterEach(async () => {
+  for (const db of databases.splice(0)) db.close();
+  await Promise.all(
+    workspaces.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
+  );
+});
+
+function database(): ReturnType<typeof openDatabase> {
+  const db = openDatabase(':memory:');
+  databases.push(db);
+  return db;
+}
 
 function probe(options: {
   mdm?: Record<string, string>;
@@ -30,6 +45,7 @@ function probe(options: {
 
 async function workspace(files: Record<string, string> = {}): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), 'tokenlens-surfaces-'));
+  workspaces.push(dir);
   for (const [relative, contents] of Object.entries(files)) {
     const target = join(dir, relative);
     await mkdir(join(target, '..'), { recursive: true });
@@ -162,7 +178,7 @@ describe('workspace-surface verification', () => {
 
 describe('agent derivation limits', () => {
   it('declines to generate a retrieval agent when no model has a measured rate', () => {
-    const db = openDatabase(':memory:');
+    const db = database();
     saveTurnRecords(
       db,
       Array.from({ length: 15 }, (_, i) =>
@@ -189,7 +205,7 @@ describe('agent derivation limits', () => {
   });
 
   it('declines to cluster below the sample floor, and says why', () => {
-    const db = openDatabase(':memory:');
+    const db = database();
     saveTurnRecords(db, [
       record({
         requestId: 'lonely',

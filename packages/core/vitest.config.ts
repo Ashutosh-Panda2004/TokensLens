@@ -5,6 +5,12 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    // Unbounded worker creation caused RPC timeouts on loaded developer
+    // machines even while every assertion passed. Four workers retain file
+    // parallelism without starving Vitest's coordinator; the CPU benchmark
+    // overrides this to one fork in its dedicated script.
+    maxWorkers: 4,
+    minWorkers: 1,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

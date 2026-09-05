@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type Database from 'better-sqlite3';
@@ -31,6 +31,11 @@ let root: string;
 beforeEach(() => {
   db = openGuardState(':memory:');
   root = mkdtempSync(join(tmpdir(), 'tokenlens-hook-'));
+});
+
+afterEach(() => {
+  db.close();
+  rmSync(root, { recursive: true, force: true });
 });
 
 function input(overrides: Partial<HookInput> & Pick<HookInput, 'event'>): HookInput {
@@ -473,73 +478,6 @@ describe('H-2 · never crash the agent', () => {
       stdinTimeoutMs: 5,
     });
     expect(decision).toEqual({ continue: true });
-  });
-});
-
-describe('H-1 · latency budget', () => {
-  const timeDecisions = (samples: number, sessionPrefix: string): number[] => {
-    const call = input({
-      event: 'PreToolUse',
-      toolName: 'read_file',
-      toolInput: { filePath: 'src/a.ts' },
-    });
-
-    const timings: number[] = [];
-    for (let i = 0; i < samples; i += 1) {
-      const started = performance.now();
-      dispatch(
-        { ...call, sessionId: `${sessionPrefix}${String(i)}` },
-        { db, salt: SALT, root, now: NOW },
-      );
-      timings.push(performance.now() - started);
-    }
-    return timings.sort((a, b) => a - b);
-  };
-
-  const median = (sorted: readonly number[]): number => sorted[Math.floor(sorted.length / 2)] ?? 0;
-
-  /**
-   * The production budget is p99 < 50 ms on a developer's machine. This
-   * suite runs forty-five files in parallel, so a wall-clock p99 measured
-   * here is mostly a measurement of the scheduler — it exceeded 100 ms
-   * under load while passing comfortably in isolation.
-   *
-   * So the assertion is on the **median**, which is robust to that noise
-   * and still catches what actually matters: somebody putting an ingest, a
-   * full scan or a network call on the hot path. Those are order-of-
-   * magnitude regressions, not 2× ones.
-   */
-  it('decides in single-digit milliseconds', () => {
-    writeFile('src/a.ts', 'export const a = 1;\n'.repeat(200));
-
-    expect(median(timeDecisions(200, 'warm'))).toBeLessThan(10);
-  });
-
-  /**
-   * The regression that would actually break the budget in production is a
-   * decision whose cost grows with history — a scan where there should be
-   * an index. A machine-speed threshold cannot catch that; comparing the
-   * same work against a large state store can.
-   */
-  it('does not get slower as the state store fills up', () => {
-    writeFile('src/a.ts', 'export const a = 1;\n'.repeat(200));
-    const cold = median(timeDecisions(100, 'cold'));
-
-    const fill = db.prepare(
-      `INSERT OR REPLACE INTO observed_read
-         (session_id, file_hash, start_line, end_line, content_hash, turn, ts)
-       VALUES (?, ?, 0, 0, 'deadbeef', 1, 1)`,
-    );
-    const insertMany = db.transaction((count: number) => {
-      for (let i = 0; i < count; i += 1) fill.run(`filler-${String(i)}`, `hash-${String(i)}`);
-    });
-    insertMany(5_000);
-
-    const loaded = median(timeDecisions(100, 'loaded'));
-
-    // Generous multiple: the point is to catch a linear scan, not to police
-    // a few hundred microseconds.
-    expect(loaded).toBeLessThan(Math.max(cold * 4, 10));
   });
 });
 

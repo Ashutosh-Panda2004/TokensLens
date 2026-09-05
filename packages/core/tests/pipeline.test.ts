@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, mkdir, cp, utimes, stat } from 'node:fs/promises';
+import { mkdtemp, mkdir, cp, utimes, stat, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { openDatabase, getAllRequests } from '../src/store/database.js';
@@ -12,22 +12,40 @@ const DRIFT_FIXTURE = new URL(
 );
 const NO_SNAPSHOT_FIXTURE = new URL('./fixtures/sessions/no-snapshot.jsonl', import.meta.url);
 
+const tempDirectories: string[] = [];
+const databases: ReturnType<typeof openDatabase>[] = [];
+
+async function tempDirectory(prefix: string): Promise<string> {
+  const directory = await mkdtemp(join(tmpdir(), prefix));
+  tempDirectories.push(directory);
+  return directory;
+}
+
+function database(): ReturnType<typeof openDatabase> {
+  const db = openDatabase(':memory:');
+  databases.push(db);
+  return db;
+}
+
+afterEach(async () => {
+  for (const db of databases.splice(0)) db.close();
+  await Promise.all(
+    tempDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
+  );
+});
+
 describe('ingestFile', () => {
   let dir: string;
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tokenlens-pipeline-'));
-  });
-
-  afterEach(async () => {
-    // best-effort; temp dirs are harmless if cleanup occasionally races a file lock
+    dir = await tempDirectory('tokenlens-pipeline-');
   });
 
   it('ingests a fresh file and persists its records', async () => {
     const filePath = join(dir, 'session.jsonl');
     await cp(GOLDEN_FIXTURE, filePath);
 
-    const db = openDatabase(':memory:');
+    const db = database();
     const result = await ingestFile(db, filePath, 'test-salt');
 
     expect(result.skippedUnchanged).toBe(false);
@@ -40,7 +58,7 @@ describe('ingestFile', () => {
     const filePath = join(dir, 'session.jsonl');
     await cp(GOLDEN_FIXTURE, filePath);
 
-    const db = openDatabase(':memory:');
+    const db = database();
     const first = await ingestFile(db, filePath, 'test-salt');
     const second = await ingestFile(db, filePath, 'test-salt');
 
@@ -53,7 +71,7 @@ describe('ingestFile', () => {
     const filePath = join(dir, 'session.jsonl');
     await cp(GOLDEN_FIXTURE, filePath);
 
-    const db = openDatabase(':memory:');
+    const db = database();
     await ingestFile(db, filePath, 'test-salt');
 
     // Simulate a modification: bump mtime forward and append a byte via a
@@ -70,7 +88,7 @@ describe('ingestFile', () => {
     const filePath = join(dir, 'session.jsonl');
     await cp(DRIFT_FIXTURE, filePath);
 
-    const db = openDatabase(':memory:');
+    const db = database();
     const result = await ingestFile(db, filePath, 'test-salt');
 
     expect(result.driftErrors).toHaveLength(1);
@@ -82,7 +100,7 @@ describe('ingestAllDiscovered', () => {
   let root: string;
 
   beforeEach(async () => {
-    root = await mkdtemp(join(tmpdir(), 'tokenlens-discovered-'));
+    root = await tempDirectory('tokenlens-discovered-');
   });
 
   it('discovers and ingests across multiple isolated workspace roots, never touching the real machine', async () => {
@@ -93,8 +111,8 @@ describe('ingestAllDiscovered', () => {
     await cp(GOLDEN_FIXTURE, join(wsA, 'session-a.jsonl'));
     await cp(GOLDEN_FIXTURE, join(wsB, 'session-b.jsonl'));
 
-    const db = openDatabase(':memory:');
-    const cwd = await mkdtemp(join(tmpdir(), 'tokenlens-cwd-'));
+    const db = database();
+    const cwd = await tempDirectory('tokenlens-cwd-');
     const summary = await ingestAllDiscovered(db, cwd, [root]);
 
     expect(summary.filesConsidered).toBe(2);
@@ -112,8 +130,8 @@ describe('ingestAllDiscovered', () => {
     await cp(NO_SNAPSHOT_FIXTURE, join(wsBad, 'no-snapshot.jsonl'));
     await cp(GOLDEN_FIXTURE, join(wsGood, 'session.jsonl'));
 
-    const db = openDatabase(':memory:');
-    const cwd = await mkdtemp(join(tmpdir(), 'tokenlens-cwd-'));
+    const db = database();
+    const cwd = await tempDirectory('tokenlens-cwd-');
 
     const summary = await ingestAllDiscovered(db, cwd, [root]);
 
@@ -130,8 +148,8 @@ describe('ingestAllDiscovered', () => {
     await mkdir(wsBad, { recursive: true });
     await cp(NO_SNAPSHOT_FIXTURE, join(wsBad, 'no-snapshot.jsonl'));
 
-    const db = openDatabase(':memory:');
-    const cwd = await mkdtemp(join(tmpdir(), 'tokenlens-cwd-'));
+    const db = database();
+    const cwd = await tempDirectory('tokenlens-cwd-');
 
     const first = await ingestAllDiscovered(db, cwd, [root]);
     const second = await ingestAllDiscovered(db, cwd, [root]);
@@ -142,8 +160,8 @@ describe('ingestAllDiscovered', () => {
   });
 
   it('returns an empty summary when the injected roots contain no workspaces', async () => {
-    const db = openDatabase(':memory:');
-    const cwd = await mkdtemp(join(tmpdir(), 'tokenlens-cwd-'));
+    const db = database();
+    const cwd = await tempDirectory('tokenlens-cwd-');
     const summary = await ingestAllDiscovered(db, cwd, [join(root, 'does-not-exist')]);
 
     expect(summary.filesConsidered).toBe(0);

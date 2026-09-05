@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { afterEach, describe, it, expect } from 'vitest';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildSimulationCorpus } from './fixtures/simulate-corpus.js';
@@ -11,6 +11,13 @@ import { verifyPolicy } from '../src/policy/verify.js';
 import type { ChannelDetection } from '../src/policy/channel.js';
 
 const NOW = new Date('2026-07-15T12:00:00Z');
+const workspaces: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(
+    workspaces.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
+  );
+});
 
 const FULL_POLICY = `
 version: 1
@@ -59,7 +66,9 @@ async function detection(
 }
 
 async function emptyWorkspace(): Promise<string> {
-  return mkdtemp(join(tmpdir(), 'tokenlens-policy-'));
+  const directory = await mkdtemp(join(tmpdir(), 'tokenlens-policy-'));
+  workspaces.push(directory);
+  return directory;
 }
 
 function contentsOf(
