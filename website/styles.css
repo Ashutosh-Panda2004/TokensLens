@@ -273,6 +273,37 @@ table.data tr:last-child td { border-bottom: none; }
 table.data td.r, table.data th.r { text-align: right; }
 table.data .rowname { color: var(--text-primary); }
 
+/* ---- GitHub repo link (top-left) ---- */
+#gh-link {
+  position: fixed; top: 22px; left: 22px; z-index: 90;
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(13, 19, 28, 0.88);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  border: 1px solid var(--hairline-bright);
+  border-radius: 999px; padding: 10px 18px 10px 14px;
+  color: var(--text-primary); text-decoration: none;
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
+  overflow: hidden;
+  transition: border-color 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out), transform 0.3s var(--ease-out);
+}
+#gh-link svg { width: 20px; height: 20px; fill: var(--text-primary); transition: fill 0.3s, transform 0.3s var(--ease-out); flex: 0 0 auto; }
+#gh-link .gh-arrow { color: var(--text-tertiary); font-size: 14px; transition: color 0.3s, transform 0.3s var(--ease-out); }
+#gh-link::after {
+  content: ''; position: absolute; inset: 0; border-radius: 999px; pointer-events: none;
+  background: linear-gradient(105deg, transparent 42%, rgba(52, 229, 160, 0.22) 50%, transparent 58%);
+  background-size: 280% 100%; background-position: 130% 0;
+  animation: gh-shine 5.5s ease-in-out infinite;
+}
+@keyframes gh-shine {
+  0%, 58% { background-position: 130% 0; }
+  88%, 100% { background-position: -30% 0; }
+}
+#gh-link:hover {
+  border-color: var(--accent); box-shadow: var(--accent-glow); transform: translateY(-2px);
+}
+#gh-link:hover svg { fill: var(--accent); transform: rotate(-8deg) scale(1.12); }
+#gh-link:hover .gh-arrow { color: var(--accent); transform: translate(2px, -2px); }
+
 /* ---- Section navigator ---- */
 #rail {
   position: fixed; right: 22px; top: 50%; transform: translateY(-50%);
