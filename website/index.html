@@ -1,0 +1,1303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TokenLens — Your Copilot invoice has no line items. So we wrote them.</title>
+<meta name="description" content="TokenLens is a local CLI that reads the Copilot usage records already on your engineers' machines and turns an unexplained invoice into an itemised bill — measured, attributed, simulated, enforced, proven.">
+<meta property="og:title" content="TokenLens — the itemised bill for AI-assisted engineering">
+<meta property="og:description" content="Your Copilot invoice has no line items. So we wrote them.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%2334E5A0' stroke-width='2.5'/%3E%3Cline x1='3' y1='16' x2='29' y2='16' stroke='%2334E5A0' stroke-width='2.5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Persistent: section navigator -->
+<nav id="rail" aria-label="Sections"></nav>
+
+<!-- Persistent: provenance legend -->
+<button id="legend-pill" aria-expanded="false" aria-controls="legend-card">
+  <span><span class="dot dot-g"></span>measured</span>
+  <span><span class="dot dot-a"></span>modelled</span>
+</button>
+<div id="legend-card" role="dialog" aria-label="Provenance legend">
+  <h4>Every number wears its receipt</h4>
+  <p><strong style="color:var(--measured-text)">measured</strong> — read from a real file on a real machine. A measurement, not a guess.</p>
+  <p><strong style="color:var(--modelled-text)">modelled</strong> — projected or estimated. Tap the chip for the basis and the assumptions behind it.</p>
+  <p><strong style="color:var(--modelled-text)">~N% measured</strong> — a total that mixes both. The chip states the exact split; the product refuses to present a mixed total as a pure measurement.</p>
+  <p class="caption">This is the product's third principle, applied to its own marketing.</p>
+</div>
+
+<!-- ============ 1 · HERO ============ -->
+<section class="site-section" id="hero" aria-labelledby="hero-h">
+  <div class="wrap">
+    <div class="two-col" style="align-items:center">
+      <div>
+        <p class="eyebrow reveal-mask"><span>RUNS LOCALLY · NO CODE LEAVES THE MACHINE · EVERY FIGURE TRACEABLE</span></p>
+        <h1 class="display-xl" id="hero-h" style="margin:28px 0 32px">
+          Your Copilot invoice has no line items.<br>
+          <span style="color:var(--measured)">So we wrote them.</span>
+        </h1>
+        <p class="subhead" style="max-width:620px">GitHub now bills your organisation by the token — and stops working when the budget runs out. It tells you what you spent. It has never told you what you bought.</p>
+        <p class="subhead" style="max-width:620px">TokenLens reads the usage records Copilot already writes to your engineers' machines and turns an unexplained total into an itemised bill.</p>
+        <div class="cta-row">
+          <a class="btn" href="#anatomy">See what a single request actually costs ↓</a>
+          <a class="btn btn-ghost" href="#dashboard">Skip to the numbers</a>
+        </div>
+        <div class="term mt-48" style="max-width:560px" aria-label="Quick start">
+          <div class="term-head"><span class="term-dot"></span><span class="term-dot"></span><span class="term-dot"></span><span class="term-title">terminal — quick start</span></div>
+          <div class="term-body">
+            <div><span class="prompt">$ </span><span class="cmd">npm install --global @tokenslens/core</span></div>
+            <div><span class="prompt">$ </span><span class="cmd">tokenlens ledger</span> <span class="comment"># credits by day, model, session, cost centre</span></div>
+            <div><span class="prompt">$ </span><span class="cmd">tokenlens dashboard</span> <span class="comment"># local UI → http://localhost:7331</span></div>
+          </div>
+        </div>
+      </div>
+      <div aria-hidden="true">
+        <p class="micro" style="margin-bottom:16px">ONE REQUEST · SEALED</p>
+        <div class="cc-bar sealed" style="height:420px; width:64px; flex-direction:column; margin:0 auto; opacity:0.5">
+          <div class="scanline" id="hero-scan" style="left:-4px; right:-4px; top:0; height:2px; width:auto"></div>
+        </div>
+        <p class="caption center mt-24" style="max-width:280px; margin-left:auto; margin-right:auto">There is structure inside every request. You cannot see it — yet.</p>
+      </div>
+    </div>
+    <div class="scroll-hint" aria-hidden="true">
+      <span class="micro">SCROLL TO MEASURE</span>
+      <span class="line"></span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2 · THE CLIFF ============ -->
+<section class="site-section ledger-top" id="cliff" aria-labelledby="cliff-h">
+  <div class="wrap">
+    <p class="eyebrow kicker-waste">1 SEPTEMBER 2026</p>
+    <h2 class="display-l" id="cliff-h" style="margin:24px 0">The included allowance just fell by 37%.<span class="chip-slot" data-prov="measured" data-src="GitHub's published Copilot plan documentation: allowances before and after 1 September 2026."></span></h2>
+    <p class="body-l narrow">Copilot's launch allowances were promotional. On 1 September they dropped — the same subscription fee, substantially less included capacity. Everything beyond the allowance is billed as overage. When the pooled budget is exhausted, Copilot stops.</p>
+    <p class="body-l narrow">There is no cheaper fallback model. There is no degraded mode. It stops.</p>
+
+    <div class="two-col mt-64" id="cliff-bars">
+      <div>
+        <p class="micro" style="margin-bottom:20px">COPILOT BUSINESS · CREDITS / USER / MONTH</p>
+        <div style="display:flex; align-items:flex-end; gap:24px; height:300px">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:12px">
+            <div class="num" style="font-size:22px">3,000<span class="chip-slot" data-prov="measured" data-src="Published allowance before 1 September 2026."></span></div>
+            <div style="width:100%; background:var(--hairline-bright); border-radius:6px 6px 0 0" data-cliff="3000" data-after="1900"></div>
+            <div class="micro">BEFORE</div>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:12px">
+            <div class="num" style="font-size:22px; color:var(--waste)">1,900<span class="chip-slot" data-prov="measured" data-src="Published allowance after 1 September 2026."></span></div>
+            <div style="width:100%; position:relative">
+              <div style="background:var(--hairline-bright); border-radius:6px 6px 0 0; opacity:0.45" data-cliff-after="1900"></div>
+              <div class="hatch" data-cliff-lost style="border-radius:6px 6px 0 0; border:1px dashed var(--waste)"></div>
+            </div>
+            <div class="micro" style="color:var(--waste)">AFTER · NOW BILLED AS OVERAGE</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="micro" style="margin-bottom:20px">COPILOT ENTERPRISE · CREDITS / USER / MONTH</p>
+        <div style="display:flex; align-items:flex-end; gap:24px; height:300px">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:12px">
+            <div class="num" style="font-size:22px">7,000<span class="chip-slot" data-prov="measured" data-src="Published allowance before 1 September 2026."></span></div>
+            <div style="width:100%; background:var(--hairline-bright); border-radius:6px 6px 0 0" data-cliff="7000" data-after="3900"></div>
+            <div class="micro">BEFORE</div>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:12px">
+            <div class="num" style="font-size:22px; color:var(--waste)">3,900<span class="chip-slot" data-prov="measured" data-src="Published allowance after 1 September 2026."></span></div>
+            <div style="width:100%; position:relative">
+              <div style="background:var(--hairline-bright); border-radius:6px 6px 0 0; opacity:0.45" data-cliff-after="3900"></div>
+              <div class="hatch" data-cliff-lost style="border-radius:6px 6px 0 0; border:1px dashed var(--waste)"></div>
+            </div>
+            <div class="micro" style="color:var(--waste)">AFTER · NOW BILLED AS OVERAGE</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption mt-48">1 AI credit = <span class="num">$0.01</span><span class="chip-slot" data-prov="measured" data-src="GitHub's published credit pricing."></span> · Credits are pooled across the organisation, do not carry over, and are forfeited monthly.</p>
+  </div>
+</section>
+
+<!-- ============ 3 · ANATOMY OF ONE REQUEST (pinned) ============ -->
+<section id="anatomy" aria-labelledby="anatomy-h">
+  <div class="pin-stage" id="anatomy-pin" style="height:380vh">
+    <div style="position:sticky; top:0; height:100vh; display:flex; align-items:center; overflow:hidden">
+      <div class="wrap" style="width:100%">
+        <div class="beat" data-beat="0" style="flex-direction:column; text-align:center">
+          <div style="background:var(--surface-raised); border:1px solid var(--hairline); border-radius:16px; padding:36px 56px; font-size:26px; max-width:640px">
+            “Can you add validation to the checkout form?”
+          </div>
+          <p class="micro mt-24">12 WORDS · 14 TOKENS</p>
+          <p class="body-l mt-24 narrow center" style="margin-left:auto;margin-right:auto">A developer asks Copilot a question. Watch what actually gets sent — and billed.</p>
+        </div>
+        <div class="beat" data-beat="1" style="flex-direction:column; display:none">
+          <p class="micro" style="margin-bottom:24px">WHAT WAS ACTUALLY SENT AND BILLED</p>
+          <div style="width:100%; position:relative">
+            <div class="cc-bar" id="anatomy-bar" style="height:72px">
+              <div class="cc-seg" id="anatomy-dot" style="width:0.5%; background:var(--measured); min-width:3px"></div>
+              <div class="cc-seg" style="flex:1; background:var(--text-tertiary); opacity:0.5"></div>
+            </div>
+          </div>
+          <div style="display:flex; justify-content:space-between; width:100%; margin-top:18px">
+            <span class="micro" style="color:var(--measured-text)">← THE QUESTION · 14 TOKENS</span>
+            <span class="num figure-m">83,166 TOKENS<span class="chip-slot" data-prov="measured" data-src="Median prompt size across 790 real Copilot requests."></span></span>
+          </div>
+          <p class="body-l mt-32 narrow center" style="margin-left:auto;margin-right:auto">The developer's question is the dot on the left. Everything else is context the model needs re-sent, from scratch, every single time.</p>
+        </div>
+        <div class="beat" data-beat="2" style="flex-direction:column; display:none">
+          <h2 class="display-m" id="anatomy-h" style="margin-bottom:32px">Every request is five bills in one.</h2>
+          <div style="width:100%; position:relative">
+            <div class="cc-bar" id="anatomy-decomp" style="height:84px">
+              <div class="cc-seg cc-messages" data-w="49"></div>
+              <div class="cc-seg cc-tool-results" data-w="23"></div>
+              <div class="cc-seg cc-tool-defs" data-w="16"></div>
+              <div class="cc-seg cc-files" data-w="7"></div>
+              <div class="cc-seg cc-system" data-w="5"></div>
+              <div class="scanline" id="anatomy-scan" style="left:0; display:none"></div>
+            </div>
+          </div>
+          <div class="two-col mt-24" style="width:100%; gap:24px" id="anatomy-labels">
+            <div class="caption" style="font-size:15px; line-height:2">
+              <span style="color:var(--cc-messages)">■</span> Conversation history · 49%<br>
+              <span style="color:var(--cc-tool-results)">■</span> Tool results · 23%<br>
+              <span style="color:var(--cc-tool-defs)">■</span> Tool descriptions · 16%
+            </div>
+            <div class="caption" style="font-size:15px; line-height:2">
+              <span style="color:var(--cc-files)">■</span> Attached files · 7%<br>
+              <span style="color:var(--cc-system)">■</span> System instructions · 5%
+            </div>
+          </div>
+          <p class="body-l mt-32 narrow center" style="margin-left:auto;margin-right:auto">VS Code writes this breakdown to disk on every request. Nobody has ever read it.</p>
+        </div>
+        <div class="beat" data-beat="3" style="flex-direction:column; display:none">
+          <p class="micro" style="margin-bottom:24px">MEDIAN COST OF ONE COPILOT REQUEST</p>
+          <div class="ledger-line" style="width:100%; max-width:760px">
+            <div class="ledger-value"><span class="figure-xl">44.5</span><span class="figure-l" style="color:var(--text-tertiary)">&nbsp;CREDITS</span><span class="chip-slot" data-prov="measured" data-src="Median cost across 790 real Copilot requests."></span></div>
+            <div class="ledger-rule"></div>
+            <div class="ledger-label">= $0.45 · EVERY FIGURE TRACEABLE TO THE FILE IT CAME FROM</div>
+          </div>
+          <p class="body-l mt-32 narrow center" style="margin-left:auto;margin-right:auto">A one-line question and a ninety-minute refactor cost close to the same. <strong>The cost is dominated by a fixed floor, not by the work.</strong><span class="chip-slot" data-prov="measured" data-src="Median request cost vs. observed range: 7.9 to 187.5 credits."></span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4 · THE FIVE COST CENTRES (pinned) ============ -->
+<section id="cost-centres" aria-labelledby="cc-h">
+  <div class="pin-stage" id="cc-pin" style="height:300vh">
+    <div style="position:sticky; top:0; height:100vh; display:flex; align-items:center; overflow:hidden">
+      <div class="wrap" style="width:100%">
+        <h2 class="display-m" id="cc-h" style="margin-bottom:48px">Where the money actually goes.</h2>
+        <div class="two-col" style="gap:48px">
+          <div id="cc-steps">
+            <div class="cc-step" data-i="0" style="padding:26px 0; border-top:1px solid var(--hairline)">
+              <p class="micro">01 · <span class="num" style="color:var(--cc-messages)">49%</span><span class="chip-slot" data-prov="measured" data-src="Token share across 6,142,177 measured prompt tokens."></span></p>
+              <h3 class="heading" style="font-size:24px; margin:8px 0">Conversation history</h3>
+              <p class="body">Everything already said in this chat, re-sent in full with every new message. The model has no memory — so you buy it again each turn.</p>
+            </div>
+            <div class="cc-step" data-i="1" style="padding:26px 0; border-top:1px solid var(--hairline)">
+              <p class="micro">02 · <span class="num" style="color:var(--cc-tool-results)">23%</span><span class="chip-slot" data-prov="measured" data-src="Token share across 6,142,177 measured prompt tokens."></span></p>
+              <h3 class="heading" style="font-size:24px; margin:8px 0">Tool results</h3>
+              <p class="body">What the AI's tools handed back — file contents, command output, search results. Once returned, it rides along in every later step.</p>
+            </div>
+            <div class="cc-step" data-i="2" style="padding:26px 0; border-top:1px solid var(--hairline)">
+              <p class="micro">03 · <span class="num" style="color:var(--cc-tool-defs)">16%</span><span class="chip-slot" data-prov="measured" data-src="Token share across 6,142,177 measured prompt tokens."></span></p>
+              <h3 class="heading" style="font-size:24px; margin:8px 0">Tool descriptions</h3>
+              <p class="body">Instructions describing every installed tool, sent in full on every request. <strong>Billed whether or not the tool is ever used.</strong></p>
+            </div>
+            <div class="cc-step" data-i="3" style="padding:26px 0; border-top:1px solid var(--hairline)">
+              <p class="micro">04 · <span class="num" style="color:var(--cc-files)">7%</span><span class="chip-slot" data-prov="measured" data-src="Token share across 6,142,177 measured prompt tokens."></span></p>
+              <h3 class="heading" style="font-size:24px; margin:8px 0">Attached files</h3>
+              <p class="body">Files deliberately attached to the question.</p>
+            </div>
+            <div class="cc-step" data-i="4" style="padding:26px 0; border-top:1px solid var(--hairline); border-bottom:1px solid var(--hairline)">
+              <p class="micro">05 · <span class="num" style="color:var(--cc-system)">5%</span><span class="chip-slot" data-prov="measured" data-src="Token share across 6,142,177 measured prompt tokens."></span></p>
+              <h3 class="heading" style="font-size:24px; margin:8px 0">System instructions</h3>
+              <p class="body">The fixed rules that tell Copilot how to behave.</p>
+            </div>
+          </div>
+          <div>
+            <div class="treemap" id="cc-treemap" style="height:520px; display:flex; gap:6px">
+              <div class="tm-cell" data-i="0" style="flex:49; background:var(--cc-messages)">
+                <div class="tm-share">49%</div><div class="tm-name">Conversation history</div>
+                <div class="tm-fig num">8,270,722 tokens · 8,242.6 cr</div>
+              </div>
+              <div style="flex:39; display:flex; flex-direction:column; gap:6px">
+                <div class="tm-cell" data-i="1" style="flex:23; background:var(--cc-tool-results)">
+                  <div class="tm-share">23%</div><div class="tm-name">Tool results</div>
+                  <div class="tm-fig num">3,832,965 tokens · 4,325.0 cr</div>
+                </div>
+                <div class="tm-cell" data-i="2" style="flex:16; background:var(--cc-tool-defs)">
+                  <div class="tm-share">16%</div><div class="tm-name">Tool descriptions</div>
+                  <div class="tm-fig num">2,601,022 tokens · 1,930.0 cr</div>
+                </div>
+              </div>
+              <div style="flex:12; display:flex; flex-direction:column; gap:6px">
+                <div class="tm-cell" data-i="3" style="flex:7; background:var(--cc-files)">
+                  <div class="tm-share">7%</div><div class="tm-name">Files</div>
+                </div>
+                <div class="tm-cell" data-i="4" style="flex:5; background:var(--cc-system)">
+                  <div class="tm-share">5%</div><div class="tm-name">System</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="display-m mt-64 narrow-780" style="max-width:900px">Rows 3 and 5 are <strong style="color:var(--text-primary)">fixed overhead</strong> — identical on every request, unrelated to the question asked. Together: <span class="num">21%</span> of every credit.<span class="chip-slot" data-prov="measured" data-src="Tool descriptions (16%) + system instructions (5%) = 21% of measured prompt tokens."></span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5 · THE TOOL-DEFINITION TAX (pinned) ============ -->
+<section id="tool-tax" aria-labelledby="tax-h" class="ledger-top">
+  <div class="wrap" style="padding-top:200px">
+    <p class="eyebrow kicker-amber">THE FINDING NOBODY HAS PRICED</p>
+    <h2 class="display-l" id="tax-h" style="margin:24px 0">You are paying to describe tools you may never use.</h2>
+    <p class="subhead narrow-780">Modern AI assistants can use tools — a database connector, a ticketing integration, a documentation searcher. For the AI to use a tool, that tool must be <strong>described to it in full.</strong></p>
+    <p class="subhead narrow-780">Not once. <strong>On every single request.</strong></p>
+    <p class="body-l narrow-780 mt-24">Install six integrations, use two, and you pay for six — on every request, from every developer, for as long as they remain installed.</p>
+
+    <div class="three-col mt-64">
+      <div class="ledger-line">
+        <div class="ledger-value"><span class="figure-l num count" data-to="17016" data-format="int">0</span><span class="chip-slot" data-prov="measured" data-src="Median tokens spent describing tools per request, across 790 real requests."></span></div>
+        <div class="ledger-rule"></div>
+        <div class="ledger-label">TOKENS SPENT DESCRIBING TOOLS, ON THE MEDIAN REQUEST</div>
+      </div>
+      <div class="ledger-line">
+        <div class="ledger-value"><span class="figure-l num count" data-to="21" data-format="int">0</span><span class="figure-l">%</span><span class="chip-slot" data-prov="measured" data-src="Median share of the prompt consumed by tool descriptions."></span></div>
+        <div class="ledger-rule"></div>
+        <div class="ledger-label">OF A TYPICAL PROMPT, BEFORE THE QUESTION IS EVEN READ</div>
+      </div>
+      <div class="ledger-line">
+        <div class="ledger-value"><span class="figure-l num count" data-to="74" data-format="int">0</span><span class="figure-l">%</span><span class="chip-slot" data-prov="measured" data-src="Highest tool-description share observed on a single real request."></span></div>
+        <div class="ledger-rule"></div>
+        <div class="ledger-label">THE HIGHEST SHARE OBSERVED ON A SINGLE REAL REQUEST</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pin-stage" id="tax-pin" style="height:260vh">
+    <div style="position:sticky; top:0; height:100vh; display:flex; align-items:center">
+      <div class="wrap" style="width:100%">
+        <p class="micro" style="margin-bottom:20px">THE TOLL GATE — DRAG THE SLIDER</p>
+        <div class="toll-lane" id="toll-lane">
+          <div class="toll-gate" id="toll-gate" style="width:37.5%"></div>
+          <div class="toll-packet" id="toll-packet" style="left:2%"></div>
+        </div>
+        <div class="mt-32" style="max-width:640px">
+          <div style="display:flex; justify-content:space-between; margin-bottom:14px">
+            <span class="micro">INSTALLED TOOLS</span>
+            <span class="num" id="tax-tools" style="font-size:28px; color:var(--cc-tool-defs)">6</span>
+          </div>
+          <input type="range" id="tax-slider" min="0" max="12" step="1" value="6" aria-label="Installed tools">
+          <div style="display:flex; justify-content:space-between; margin-top:8px">
+            <span class="micro">0</span><span class="micro">12</span>
+          </div>
+        </div>
+        <div class="two-col mt-48">
+          <div>
+            <div class="ledger-line" style="margin:0 0 28px">
+              <div class="ledger-value"><span class="figure-m num" id="tax-tokens">~9,600</span><span class="chip-slot" data-prov="modelled" data-basis="Modelled at ~1,600 tokens per tool description, from the measured finding that installed tools add a fixed per-request token cost." data-assume="Tool descriptions scale roughly linearly with installed count|Median request size of 83,166 tokens is used as the denominator"></span></div>
+              <div class="ledger-rule"></div><div class="ledger-label">TOKENS PER REQUEST</div>
+            </div>
+            <div class="ledger-line" style="margin:0">
+              <div class="ledger-value"><span class="figure-m num" id="tax-share">12%</span><span class="chip-slot" data-prov="modelled" data-basis="Tool-description tokens as a share of the measured median request (83,166 tokens)." data-assume="Median request size is representative of your fleet"></span></div>
+              <div class="ledger-rule"></div><div class="ledger-label">SHARE OF PROMPT</div>
+            </div>
+          </div>
+          <div>
+            <div class="ledger-line" style="margin:0 0 28px">
+              <div class="ledger-value"><span class="figure-m num" id="tax-dev">$9.60</span><span class="chip-slot" data-prov="modelled" data-basis="100 requests per developer per month at the measured blended rate of 0.5353 credits per 1,000 prompt tokens." data-assume="100 requests per developer per month|Blended rate holds across your fleet"></span></div>
+              <div class="ledger-rule"></div><div class="ledger-label">COST PER DEVELOPER PER MONTH</div>
+            </div>
+            <div class="ledger-line" style="margin:0">
+              <div class="ledger-value"><span class="figure-m num" id="tax-fleet">$48,000</span><span class="chip-slot" data-prov="modelled" data-basis="Per-developer figure scaled linearly across 5,000 seats." data-assume="Your fleet's usage resembles the measured profile|No change in model pricing"></span></div>
+              <div class="ledger-rule"></div><div class="ledger-label">ACROSS 5,000 SEATS · PER MONTH</div>
+            </div>
+          </div>
+        </div>
+        <p class="display-m mt-96" style="max-width:1000px">This cost scales with what you have <strong style="color:var(--cc-tool-defs)">installed</strong> — not with what you <strong>use</strong>. It is invisible, it is large, and it is the most trivially reducible cost in the entire bill.<span class="chip-slot" data-prov="measured" data-src="21% median share of tool descriptions; cost accrues per request regardless of invocation."></span></p>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- ============ 6 · THE MULTIPLIER ============ -->
+<section class="site-section ledger-top" id="multiplier" aria-labelledby="mult-h">
+  <div class="wrap">
+    <div class="two-col" style="align-items:center">
+      <div>
+        <h2 class="display-m" id="mult-h">You pay for the same words about ten times.</h2>
+        <p class="body-l mt-32">The model has no memory between steps. When the AI reads a file, then runs a command, then decides what to do next, everything it has gathered so far is re-sent at every step so it can “remember”.</p>
+        <p class="body-l">Across real sessions, every token of genuinely new content was billed roughly ten times over.</p>
+        <div class="ledger-line mt-48">
+          <div class="ledger-value"><span class="figure-xl num count" data-to="9.8" data-format="dec1">0</span><span class="figure-xl">×</span><span class="chip-slot" data-prov="measured" data-src="Measured across 790 requests: prompt tokens billed vs. unique content generated."></span></div>
+          <div class="ledger-rule"></div>
+          <div class="ledger-label">RE-TRANSMISSION MULTIPLIER · MEASURED ACROSS 790 REQUESTS</div>
+        </div>
+        <p class="caption mt-32"><em>Some of this is unavoidable — it is how the technology works. A meaningful share is not, and that is what we go after.</em></p>
+      </div>
+      <div aria-hidden="true">
+        <div class="card" style="text-align:center">
+          <p class="micro" style="margin-bottom:24px">ONE TOKEN'S JOURNEY THROUGH AN AGENT LOOP</p>
+          <div id="mult-loop" style="display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; min-height:120px">
+            <span class="num" style="background:var(--surface-overlay); border:1px solid var(--hairline-bright); padding:12px 20px; border-radius:8px">token</span>
+          </div>
+          <p class="num mt-24" style="font-size:20px">billed <span id="mult-count" style="color:var(--waste)">1×</span></p>
+          <p class="caption">each pass re-sends everything gathered so far</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7 · THE FREE 61% ============ -->
+<section class="site-section ledger-top" id="free61" aria-labelledby="free61-h">
+  <div class="wrap">
+    <h2 class="display-m narrow-780" id="free61-h">The most expensive habit in your engineering org is leaving a chat window open.</h2>
+    <p class="body-l narrow mt-32">Because the whole conversation is re-sent every turn, a chat gets more expensive with every message. By the thirty-third message, each new message costs <strong>61% more</strong> than it would in a fresh chat.<span class="chip-slot" data-prov="measured" data-src="33rd message at 56.9 credits vs. fresh-chat message at 31.2 credits."></span></p>
+    <p class="body-l narrow">The fix is <em>“start a new chat when you start a new task.”</em></p>
+    <p class="body-l narrow">It costs nothing. It requires no tooling. Almost nobody does it — <strong>because nobody can see the meter running.</strong></p>
+
+    <div class="card mt-64">
+      <p class="micro" style="margin-bottom:8px">COST PER MESSAGE · MESSAGE NUMBER</p>
+      <div style="position:relative; height:280px; margin-top:24px">
+        <svg id="free61-chart" viewBox="0 0 800 280" preserveAspectRatio="none" style="width:100%; height:100%; display:block" role="img" aria-label="Cost per message climbs from 31.2 to 56.9 credits by the 33rd message">
+          <defs>
+            <linearGradient id="wastefill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#ff5470" stop-opacity="0.35"/>
+              <stop offset="1" stop-color="#ff5470" stop-opacity="0.02"/>
+            </linearGradient>
+          </defs>
+          <path id="free61-area" fill="url(#wastefill)"/>
+          <path id="free61-line" fill="none" stroke="#ff5470" stroke-width="2.5"/>
+          <g font-family="JetBrains Mono, monospace" font-size="13" fill="#97a6b8">
+            <text x="8" y="262">1</text>
+            <text x="772" y="262">33</text>
+          </g>
+        </svg>
+        <div style="position:absolute; left:2%; bottom:8px">
+          <div class="num" style="font-size:20px">31.2<span class="chip-slot" data-prov="measured" data-src="Measured cost of a message in a fresh chat."></span></div>
+          <div class="micro">A FRESH CHAT</div>
+        </div>
+        <div style="position:absolute; right:2%; top:8px; text-align:right">
+          <div class="num" style="font-size:20px; color:var(--waste)">56.9<span class="chip-slot" data-prov="measured" data-src="Measured cost of the 33rd message in a long session."></span></div>
+          <div class="micro" style="color:var(--waste)">THE 33rd MESSAGE · +61%</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="honesty mt-48 narrow">
+      <p style="margin:0">This is what an absent cost signal looks like. Nobody is being careless — the information simply does not exist at the moment the decision is made.<span class="chip-slot" data-prov="measured" data-src="Session-length penalty measured across real chat sessions."></span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 8 · CONCENTRATION ============ -->
+<section class="site-section ledger-top" id="concentration" aria-labelledby="conc-h">
+  <div class="wrap">
+    <p class="eyebrow">THE ENCOURAGING PART</p>
+    <h2 class="display-m" id="conc-h" style="margin:24px 0">You do not have to change how everyone works.</h2>
+    <div class="two-col mt-48">
+      <div class="ledger-line" style="margin:0">
+        <div class="ledger-value"><span class="figure-xl num count" data-to="16" data-format="int">0</span><span class="figure-xl">%</span><span class="chip-slot" data-prov="measured" data-src="Share of chat sessions holding half of all spend, across 57 measured sessions."></span></div>
+        <div class="ledger-rule"></div>
+        <div class="ledger-label">OF CHAT SESSIONS</div>
+      </div>
+      <div class="ledger-line" style="margin:0">
+        <div class="ledger-value"><span class="figure-xl num count" data-to="50" data-format="int">0</span><span class="figure-xl">%</span><span class="chip-slot" data-prov="measured" data-src="Share of total spend held by that 16% of sessions."></span></div>
+        <div class="ledger-rule"></div>
+        <div class="ledger-label">OF ALL MONEY SPENT</div>
+      </div>
+    </div>
+    <p class="body-l narrow mt-48">Spend is extremely concentrated. The most expensive single session cost <span class="num">$32.70</span><span class="chip-slot" data-prov="measured" data-src="Most expensive single session in the analysed corpus."></span>; the typical session cost <span class="num">$3.61</span><span class="chip-slot" data-prov="measured" data-src="Median session cost in the analysed corpus."></span>.</p>
+    <p class="body-l narrow">This means the intervention is surgical, not cultural. Fix the worst tenth and you capture most of the value — without a training programme, a policy memo, or a single all-hands.</p>
+
+    <div class="card mt-64">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:12px">
+        <p class="micro">57 REAL SESSIONS · SIZED BY SPEND · SORTED DESCENDING</p>
+        <p class="caption">top session <span class="num" style="color:var(--waste)">8,644.6 credits</span><span class="chip-slot" data-prov="measured" data-src="Most expensive session in the live ledger."></span></p>
+      </div>
+      <div id="conc-grid" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:24px" aria-hidden="true"></div>
+      <div style="margin-top:20px; padding-top:16px; border-top:1px dashed var(--hairline-bright); display:flex; gap:16px; align-items:center">
+        <span style="color:var(--waste); font-size:20px">⎴</span>
+        <p class="micro" style="color:var(--waste)">THE LARGEST NINE · 50% OF ALL SPEND</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 9 · THE BLIND SPOT ============ -->
+<section class="site-section ledger-top" id="blindspot" aria-labelledby="blind-h">
+  <div class="wrap">
+    <h2 class="display-m narrow-780" id="blind-h">Why has nobody shown you this before?</h2>
+    <div class="body-l narrow mt-32">
+      <p>There is a whole industry of AI monitoring tools. None of them can see Copilot — for a structural reason, not a lack of effort.</p>
+      <p>Those tools work by sitting <strong>in the network path</strong>: you route your AI traffic through them and they inspect it as it passes. That works when your own application calls an AI provider.</p>
+      <p>Copilot does not work that way. The traffic goes from the editor to GitHub over a channel you do not control and cannot intercept. <strong>There is no point in the middle to stand.</strong></p>
+      <p>The only place this information exists in readable form is a file on the developer's own machine — in an undocumented format that changes with every VS Code release. Reading it reliably is genuinely difficult.</p>
+      <p><strong>That difficulty is exactly why the category is empty. It is also our moat.</strong></p>
+    </div>
+
+    <div class="contrast-grid mt-64">
+      <div>
+        <p class="micro" style="margin-bottom:24px">HOW MONITORING TOOLS WORK</p>
+        <div class="diagram">
+          <span class="node">YOUR APP</span> <span class="arrow">──▶</span>
+          <span class="node glow">MONITORING TOOL</span> <span class="arrow">──▶</span>
+          <span class="node">AI PROVIDER</span>
+        </div>
+        <p class="caption mt-24">A place to stand.</p>
+      </div>
+      <div>
+        <p class="micro" style="margin-bottom:24px">HOW COPILOT WORKS</p>
+        <div class="diagram">
+          <span class="node">EDITOR</span> <span class="arrow">━━━━━━▶</span> <span class="node">GITHUB</span><br>
+          <span class="node bad" style="margin-top:16px; border-style:dashed">✕ NOWHERE TO STAND</span>
+        </div>
+        <div class="diagram mt-24">
+          <span class="node glow">◑ THE RECORD IS ALREADY HERE</span> <span class="arrow">──▶</span> <span class="node glow">TOKENLENS</span>
+        </div>
+        <p class="caption mt-24">The local journal on the developer's own machine.</p>
+      </div>
+    </div>
+    <p class="display-m center mt-96 narrow-780" style="margin-left:auto;margin-right:auto"><em>We did not find a better place to stand. We found that the receipt was already on the floor.</em></p>
+  </div>
+</section>
+
+<!-- ============ 10 · WHAT TOKENLENS IS ============ -->
+<section class="site-section ledger-top" id="product" aria-labelledby="prod-h">
+  <div class="wrap">
+    <p class="eyebrow">THE PRODUCT</p>
+    <h2 class="display-l" id="prod-h" style="margin:24px 0">An itemised bill for AI-assisted engineering.</h2>
+    <p class="subhead narrow-780">TokenLens reads the usage records already on your engineers' machines, shows you exactly what every credit bought, names what was wasted and why, and hands your IT team a configuration change that removes a large part of it — without asking a single developer to work differently.</p>
+
+    <div class="steps-5">
+      <div class="step-card">
+        <div class="step-num">01</div>
+        <h3>Measure</h3>
+        <p>Read the records Copilot already writes. Produce an exact credit ledger. Every figure traceable to the byte it came from.</p>
+        <span class="tag tag-today">Available today</span>
+      </div>
+      <div class="step-card">
+        <div class="step-num">02</div>
+        <h3>Attribute</h3>
+        <p>Assign wasted spend to fourteen named, individually detectable causes. Waste stops being a total and becomes a list of specific, fixable things.</p>
+        <span class="tag tag-today">Available today</span>
+      </div>
+      <div class="step-card">
+        <div class="step-num">03</div>
+        <h3>Simulate</h3>
+        <p>Replay real recorded sessions under a proposed change and report what it <em>would have</em> saved — before anything is deployed.</p>
+        <span class="tag tag-road">On the roadmap</span>
+      </div>
+      <div class="step-card">
+        <div class="step-num">04</div>
+        <h3>Enforce</h3>
+        <p>Emit the exact configuration your IT team pushes through the device-management tooling you already own. No developer action.</p>
+        <span class="tag tag-road">On the roadmap</span>
+      </div>
+      <div class="step-card">
+        <div class="step-num">05</div>
+        <h3>Prove</h3>
+        <p>Run it as a randomised trial against a holdout group on your own fleet. Report the <em>actual</em> saving, including where we were wrong.</p>
+        <span class="tag tag-road">On the roadmap</span>
+      </div>
+    </div>
+    <p class="caption mt-48">Steps 01–02 are working software running on real data today. Steps 03–05 are specified and sequenced — see the roadmap below.</p>
+  </div>
+</section>
+
+<!-- ============ 11 · HOW IT WORKS ============ -->
+<section class="site-section ledger-top" id="how-it-works" aria-labelledby="how-h">
+  <div class="wrap">
+    <h2 class="display-m" id="how-h">What adopting this actually involves.</h2>
+    <p class="subhead mt-24">There is no server to run, no proxy to configure, no agent to install, and no data pipeline to build.</p>
+
+    <div class="mt-64">
+      <div class="how-step">
+        <div class="how-num">1</div>
+        <div>
+          <h3>One command, one laptop.</h3>
+          <p>An engineer runs a single command on their own machine. It reads the local Copilot records and prints the ledger. Nothing is uploaded. Nothing is installed permanently. This takes minutes, not a project.</p>
+          <div class="term mt-24" style="max-width:640px"><div class="term-body"><span class="prompt">$ </span><span class="cmd">tokenlens ledger</span><br><span class="out dim"># credits by day, model, session and cost centre</span></div></div>
+        </div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">2</div>
+        <div>
+          <h3>Look at the report.</h3>
+          <p>A local dashboard opens in the browser — running on that machine, reachable only from that machine. It shows the itemised bill: where the credits went, which sessions, which tools, which behaviours.</p>
+          <div class="term mt-24" style="max-width:640px"><div class="term-body"><span class="prompt">$ </span><span class="cmd">tokenlens dashboard</span><br><span class="out dim"># local web UI on 127.0.0.1, token-guarded → </span><span class="out-hi">http://localhost:7331</span></div></div>
+        </div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">3</div>
+        <div>
+          <h3>Widen to a sample.</h3>
+          <p>Repeat across a representative group of engineers — twenty is plenty. Only aggregate counts are combined. Source code never moves.</p>
+          <div class="term mt-24" style="max-width:640px"><div class="term-body"><span class="prompt">$ </span><span class="cmd">tokenlens dashboard --html team-report.html</span><br><span class="out dim"># one self-contained file — email it to finance, opens offline</span></div></div>
+        </div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">4</div>
+        <div>
+          <h3>Deploy the configuration.</h3>
+          <p>TokenLens produces the exact settings file. Your IT team pushes it through the same tooling used for every other setting. <strong>Developers notice nothing except that things stop running out.</strong></p>
+          <div class="term mt-24" style="max-width:640px"><div class="term-body"><span class="prompt">$ </span><span class="cmd">tokenlens policy emit --out ./out</span><br><span class="out dim"># .reg / .mobileconfig / settings.json + rollbacks</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="two-col mt-96">
+      <div class="card"><h3>Nothing leaves the machine</h3><p class="card-sub">Only aggregate counts and one-way hashes. Offline by default.</p></div>
+      <div class="card"><h3>Read-only, always</h3><p class="card-sub">Files are opened for reading. Nothing is ever written, moved, or altered.</p></div>
+      <div class="card"><h3>No infrastructure</h3><p class="card-sub">No proxy, no server, no agent, no pipeline.</p></div>
+      <div class="card"><h3>Every number traceable</h3><p class="card-sub">One command prints the file and byte position behind any figure.</p><div class="term mt-24"><div class="term-body"><span class="prompt">$ </span><span class="cmd">tokenlens verify &lt;requestId&gt;</span></div></div></div>
+    </div>
+  </div>
+</section>
+<!-- ============ 12 · THE ITEMISED BILL — LIVE ============ -->
+<section class="site-section ledger-top" id="dashboard" aria-labelledby="dash-h">
+  <div class="wrap">
+    <p class="eyebrow">RUNNING TODAY, ON REAL DATA</p>
+    <h2 class="display-m" id="dash-h" style="margin:24px 0">This is not a mock-up.</h2>
+    <p class="body-l narrow">Everything below is the tool's real dashboard — reconstructed from its actual source (<span class="num">packages/core/src/dashboard</span>) — showing the live figures it reports on the developer machine it was built on: <span class="num">713</span> requests across <span class="num">57</span> chat sessions over <span class="num">61</span> active days. Every figure carries its own receipt.</p>
+    <p class="caption narrow mt-16">Time-series shapes are illustrative; every figure is real. Switch views with the sidebar — exactly as in the running tool.</p>
+
+    <div class="cta-row mt-32" role="tablist" aria-label="Dashboard views">
+      <button class="btn btn-ghost dash-tab" role="tab" aria-selected="true" data-view="overview" style="padding:12px 22px">◈ Overview</button>
+      <button class="btn btn-ghost dash-tab" role="tab" aria-selected="false" data-view="models" style="padding:12px 22px">◇ Models</button>
+      <button class="btn btn-ghost dash-tab" role="tab" aria-selected="false" data-view="budget" style="padding:12px 22px">◔ Budget</button>
+      <button class="btn btn-ghost dash-tab" role="tab" aria-selected="false" data-view="waste" style="padding:12px 22px">⚠ Waste</button>
+      <button class="btn dash-anat-toggle" id="anat-toggle" aria-pressed="false" style="padding:12px 22px; margin-left:auto">Show element anatomy</button>
+    </div>
+
+    <div class="dash-frame mt-32" id="dash-frame">
+      <div class="dash-shell">
+        <aside class="dash-side anat" aria-label="Dashboard navigation">
+          <span class="anat-dot" style="top:8px; right:8px">1</span>
+          <div class="dash-logo"><span class="lg">◑</span> TokenLens</div>
+          <button class="dash-nav-item active" data-view="overview"><span class="ic">◈</span> Overview</button>
+          <button class="dash-nav-item" data-view="budget"><span class="ic">◔</span> Budget</button>
+          <button class="dash-nav-item" data-view="sessions"><span class="ic">❐</span> Sessions</button>
+          <button class="dash-nav-item" data-view="models"><span class="ic">◇</span> Models</button>
+          <button class="dash-nav-item"><span class="ic">⛭</span> Tools</button>
+          <button class="dash-nav-item" data-view="waste"><span class="ic">⚠</span> Waste</button>
+          <button class="dash-nav-item"><span class="ic">▤</span> Day</button>
+          <button class="dash-nav-item"><span class="ic">▦</span> Projects</button>
+          <button class="dash-nav-item"><span class="ic">≡</span> Data</button>
+          <button class="dash-nav-item"><span class="ic">⚙</span> Settings</button>
+          <div class="dash-side-foot anat" style="position:relative">
+            <span class="anat-dot" style="top:-6px; right:8px">2</span>
+            <button class="dash-nav-item"><span class="ic">◐</span> Theme: system</button>
+            <button class="dash-nav-item"><span class="ic">≡</span> Compact</button>
+          </div>
+        </aside>
+        <div class="dash-main">
+          <div class="dash-topbar anat" style="position:relative">
+            <span class="anat-dot" style="top:6px; right:10px">3</span>
+            <div>
+              <h3 id="dash-title">Overview</h3>
+              <div class="dash-scope-line">Scope: All projects · 61 active days · UTC days</div>
+            </div>
+            <div class="dash-controls">
+              <select class="dash-select" aria-label="Scope"><option>All projects</option><option>Current folder</option></select>
+              <select class="dash-select" aria-label="Date range"><option>All time</option><option>Last 7 days</option><option>Last 30 days</option><option>Month to date</option></select>
+              <button class="dash-nav-item" style="width:auto" aria-label="Refresh">⟳</button>
+            </div>
+          </div>
+
+          <!-- OVERVIEW -->
+          <div class="dash-view" data-viewset="overview" role="tabpanel">
+            <div class="dash-kpis anat" style="position:relative">
+              <span class="anat-dot" style="top:-13px; left:12px">4</span>
+              <div class="dash-kpi"><div class="k-label">Credits</div><div class="k-val">66,008.2<span class="d-chip d-blended">~24% measured</span></div><div class="k-sub">713 requests over 61 active day(s)</div></div>
+              <div class="dash-kpi"><div class="k-label">Per active day</div><div class="k-val">1,082.1</div><div class="k-sub">61 active days measured</div></div>
+              <div class="dash-kpi"><div class="k-label">Month to date</div><div class="k-val">—</div><div class="k-sub">allowance: 3,900 credits/mo</div></div>
+              <div class="dash-kpi"><div class="k-label">Models in use</div><div class="k-val">11</div><div class="k-sub">Top: claude-sonnet-4-6</div></div>
+              <div class="dash-kpi"><div class="k-label">Measured share</div><div class="k-val">24%</div><div class="k-sub">the rest is a rate-card estimate</div></div>
+              <div class="dash-kpi"><div class="k-label">Flagged days</div><div class="k-val">—</div><div class="k-sub">median absolute deviation, not σ</div></div>
+            </div>
+            <div class="anat" style="position:relative">
+              <span class="anat-dot" style="top:10px; right:14px">5</span>
+              <div class="dash-card" style="margin-bottom:18px">
+                <h4>Daily spend</h4>
+                <div class="d-sub">Cumulative credits across the 61 active days. Hover for the exact figure on any day.</div>
+                <svg viewBox="0 0 700 180" style="width:100%; height:170px; display:block" role="img" aria-label="Cumulative spend rising to 66,008 credits">
+                  <defs><linearGradient id="cumfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6ba2ff" stop-opacity="0.4"/><stop offset="1" stop-color="#6ba2ff" stop-opacity="0.03"/></linearGradient></defs>
+                  <path id="cum-area" fill="url(#cumfill)"/>
+                  <path id="cum-line" fill="none" stroke="#6ba2ff" stroke-width="2.5"/>
+                  <text x="688" y="30" text-anchor="end" font-family="JetBrains Mono" font-size="13" fill="#f0f2f4">66,008.2</text>
+                </svg>
+              </div>
+            </div>
+            <div class="dash-cards2">
+              <div class="dash-card anat" style="position:relative">
+                <span class="anat-dot" style="top:10px; right:14px">6</span>
+                <h4>Where the prompt goes</h4>
+                <div class="d-sub">The five-way split VS Code records on every request.</div>
+                <svg viewBox="0 0 200 200" style="width:190px; height:190px; display:block; margin:6px auto" role="img" aria-label="Cost centre donut: history 49, tool results 23, tool descriptions 16, files 7, system 5">
+                  <g id="cc-donut" transform="rotate(-90 100 100)"></g>
+                  <text x="100" y="96" text-anchor="middle" font-family="JetBrains Mono" font-size="19" fill="#f0f2f4">16,076</text>
+                  <text x="100" y="116" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#9ca4ae">credits</text>
+                </svg>
+                <table class="data" style="font-size:13px; margin-top:8px">
+                  <thead><tr><th>Cost centre</th><th class="r">Tokens</th><th class="r">Share</th></tr></thead>
+                  <tbody>
+                    <tr><td class="rowname"><span style="color:#4d7fff">■</span> Conversation history</td><td class="r">8,270,722</td><td class="r">49% <span class="d-chip d-measured">measured</span></td></tr>
+                    <tr><td class="rowname"><span style="color:#8b5cf6">■</span> Tool results</td><td class="r">3,832,965</td><td class="r">23% <span class="d-chip d-measured">measured</span></td></tr>
+                    <tr><td class="rowname"><span style="color:#ffb43d">■</span> Tool descriptions</td><td class="r">2,601,022</td><td class="r">16% <span class="d-chip d-measured">measured</span></td></tr>
+                    <tr><td class="rowname"><span style="color:#22b8cf">■</span> Attached files</td><td class="r">1,231,513</td><td class="r">7% <span class="d-chip d-measured">measured</span></td></tr>
+                    <tr><td class="rowname"><span style="color:#64748b">■</span> System instructions</td><td class="r">789,442</td><td class="r">5% <span class="d-chip d-measured">measured</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="dash-card anat" style="position:relative">
+                <span class="anat-dot" style="top:10px; right:14px">7</span>
+                <h4>Model mix over time</h4>
+                <div class="d-sub">Stacked credits per day, biggest model at the bottom. The chart that answers “is the premium share growing”.</div>
+                <svg viewBox="0 0 400 200" style="width:100%; height:190px; display:block" role="img" aria-label="Illustrative stacked model mix"><path id="mix-area" fill="none" stroke="#6ba2ff" stroke-width="1.5" opacity="0.7"/><path id="mix-area2" fill="none" stroke="#e7bd68" stroke-width="1.5" opacity="0.7"/></svg>
+                <div class="caption">Illustrative shape — the live tool stacks your real models. <span class="num">60</span> requests on the dearest model cost <span class="num">17,872</span> credits; <span class="num">212</span> on the cheapest cost <span class="num">2,782</span>. <span class="d-chip d-measured">measured</span></div>
+              </div>
+            </div>
+            <div class="dash-card anat" style="position:relative">
+              <span class="anat-dot" style="top:10px; right:14px">8</span>
+              <h4>When the spend happens</h4>
+              <div class="d-sub">Click a day to open its detail. Only measured days are drawn — a padded-out calendar would render “before you started” identically to “spent nothing”, which are not the same claim.</div>
+              <div id="cal-heat" style="display:grid; grid-template-columns:repeat(31, 1fr); gap:3px" aria-hidden="true"></div>
+              <div class="caption mt-16">Illustrative pattern shown — your real days render here.</div>
+            </div>
+          </div>
+
+          <!-- MODELS -->
+          <div class="dash-view" data-viewset="models" role="tabpanel" hidden>
+            <div class="dash-kpis" style="grid-template-columns:repeat(4,1fr)">
+              <div class="dash-kpi"><div class="k-label">Models in use</div><div class="k-val">11</div></div>
+              <div class="dash-kpi"><div class="k-label">Cheapest rate</div><div class="k-val">0.177</div><div class="k-sub">claude-haiku-4-5 · credits / 1k</div></div>
+              <div class="dash-kpi"><div class="k-label">Dearest rate</div><div class="k-val">2.362</div><div class="k-sub">gpt-5.6-sol · credits / 1k</div></div>
+              <div class="dash-kpi"><div class="k-label">Spread</div><div class="k-val">13.3×</div><div class="k-sub">the largest single lever available</div></div>
+            </div>
+            <div class="dash-card">
+              <h4>By model</h4>
+              <div class="d-sub">A rate carries its own provenance: one derived from this model's measured requests and one that fell back to the blended average are different claims.</div>
+              <div style="overflow-x:auto">
+              <table class="data" style="font-size:13px; min-width:640px">
+                <thead><tr><th>Model</th><th class="r">Credits</th><th class="r">Requests</th><th class="r">Share</th><th class="r">cr / 1k</th><th class="r">Rate samples</th></tr></thead>
+                <tbody id="models-table"></tbody>
+              </table>
+              </div>
+            </div>
+            <div class="dash-card">
+              <h4>Credits by model</h4>
+              <div class="d-sub">Not share of requests — a cheap model can dominate one and barely register in the other.</div>
+              <div id="model-bars" style="display:flex; flex-direction:column; gap:10px"></div>
+            </div>
+          </div>
+
+          <!-- BUDGET -->
+          <div class="dash-view" data-viewset="budget" role="tabpanel" hidden>
+            <div class="dash-cards2">
+              <div class="dash-card">
+                <h4>Allowance</h4>
+                <div class="d-sub">The published figure for this plan — not a reading of your organisation's settings.</div>
+                <table class="data" style="font-size:14px">
+                  <tbody>
+                    <tr><td class="rowname">Plan</td><td class="r">enterprise</td></tr>
+                    <tr><td class="rowname">Monthly allowance</td><td class="r">3,900 credits</td></tr>
+                    <tr><td class="rowname">Month-to-date</td><td class="r">—</td></tr>
+                    <tr><td class="rowname">Projected month-end</td><td class="r">9,922.0 <span class="d-chip d-modelled">modelled</span></td></tr>
+                  </tbody>
+                </table>
+                <p class="caption mt-16" style="color:#e7bd68">TokenLens makes no network calls, so it cannot read your organisation's actual limit. Set it with <span class="num">--allowance</span>, <span class="num">TOKENLENS_MONTHLY_ALLOWANCE</span>, or <span class="num">"monthlyAllowance"</span> in <span class="num">.tokenlens/config.json</span>.</p>
+              </div>
+              <div class="dash-card">
+                <h4>Forecast</h4>
+                <div class="d-sub">Linear extrapolation of the month-to-date daily rate — not a forecast of behaviour change.</div>
+                <svg viewBox="0 0 220 130" style="width:230px; display:block; margin:10px auto" role="img" aria-label="Gauge: projected 9,922 credits against a 3,900 allowance">
+                  <path d="M 20 115 A 90 90 0 0 1 200 115" fill="none" stroke="#30343a" stroke-width="16" stroke-linecap="round"/>
+                  <path d="M 20 115 A 90 90 0 0 1 200 115" fill="none" stroke="#ff5470" stroke-width="16" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="40"/>
+                  <text x="110" y="95" text-anchor="middle" font-family="JetBrains Mono" font-size="22" fill="#f0f2f4">9,922</text>
+                  <text x="110" y="114" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#9ca4ae">of 3,900 used</text>
+                </svg>
+                <p style="color:#ff8ba0; font-size:14px">Projected to exceed the allowance by <span class="num">6,022.0</span> credits. <span class="d-chip d-modelled">modelled</span></p>
+                <p class="caption">Illustrated with the measured monthly run-rate of <span class="num">9,922</span> credits.</p>
+              </div>
+            </div>
+            <div class="dash-card">
+              <h4>Versus the preceding window</h4>
+              <div class="d-sub">Equal length, immediately before the selected range — comparing a week to a year and calling the difference a trend is how a chart lies without a single wrong number.</div>
+              <p class="caption">Pick a custom or bounded range to compare it against the preceding window.</p>
+            </div>
+          </div>
+
+          <!-- WASTE -->
+          <div class="dash-view" data-viewset="waste" role="tabpanel" hidden>
+            <div class="dash-card">
+              <h4>Attribution</h4>
+              <div class="d-sub">Findings can legitimately overlap — one request may be both on an over-powered model and inside a runaway loop — so these do not sum to the ledger.</div>
+              <div style="display:flex; gap:36px; flex-wrap:wrap">
+                <div><div class="num" style="font-size:26px; color:#f0f2f4">14</div><div class="caption">Named causes</div></div>
+                <div><div class="num" style="font-size:26px; color:#f0f2f4">W1–W14</div><div class="caption">Detector classes</div></div>
+              </div>
+            </div>
+            <div class="dash-card">
+              <h4>What the credits went on</h4>
+              <div class="d-sub">Expand a finding for its evidence and, more usefully, what to do about it.</div>
+              <details style="border:1px solid #30343a; border-radius:6px; padding:14px 18px; margin-bottom:10px" open>
+                <summary style="cursor:pointer; color:#f0f2f4; font-size:15px"><span class="d-chip d-modelled">tier 1</span> <strong>W1 · The tool-definition toll</strong> <span class="num" style="color:#9ca4ae">— 9.1 cr / request</span></summary>
+                <p class="caption mt-16"><strong style="color:#f0f2f4">Change:</strong> remove integrations that were never invoked; keep the rest. <strong style="color:#f0f2f4">Confidence</strong> high · <strong style="color:#f0f2f4">fixed by:</strong> platform team, one settings change. Measured: 17,016 tokens per request, 21% of the median prompt. <span class="d-chip d-measured">measured</span></p>
+              </details>
+              <details style="border:1px solid #30343a; border-radius:6px; padding:14px 18px; margin-bottom:10px">
+                <summary style="cursor:pointer; color:#f0f2f4; font-size:15px"><span class="d-chip d-modelled">tier 2</span> <strong>W2 · Reading the same file twice</strong></summary>
+                <p class="caption mt-16">Measured: 42.0% of file reads were repeats; one file was read 72 times in a single session. <span class="d-chip d-measured">measured</span></p>
+              </details>
+              <details style="border:1px solid #30343a; border-radius:6px; padding:14px 18px; margin-bottom:10px">
+                <summary style="cursor:pointer; color:#f0f2f4; font-size:15px"><span class="d-chip d-modelled">tier 1</span> <strong>W9 · Context compaction</strong></summary>
+                <p class="caption mt-16">In 115 days, automatic summarisation ran 84 times at a median of 92 seconds each — about two hours of engineers watching a progress indicator. <span class="d-chip d-measured">measured</span></p>
+              </details>
+              <p class="caption">…plus W3–W8 and W10–W14 — the full fourteen are listed below.</p>
+            </div>
+            <div class="dash-card">
+              <h4>Classes that could not be judged</h4>
+              <div class="d-sub">These are not zeros. Each one says what data was missing and what would unblock it.</div>
+              <p class="caption">“We found no waste” and “we could not look” are opposite claims — the dashboard keeps them visibly apart.</p>
+            </div>
+          </div>
+
+          <div class="dash-footer anat" style="position:relative">
+            <span class="anat-dot" style="top:-13px; right:14px">9</span>
+            <span><span class="d-chip d-measured">measured</span> from a recorded value</span>
+            <span><span class="d-chip d-blended">~N%</span> part measured, part estimated</span>
+            <span><span class="d-chip d-modelled">modelled</span> rate-card estimate</span>
+            <span style="margin-left:auto"><kbd>Ctrl</kbd>+<kbd>K</kbd> jump · <kbd>Ctrl</kbd>+<kbd>B</kbd> nav</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="anat-legend" id="anat-legend">
+      <div class="anat-item"><span class="n">1</span><div><h5>Sidebar navigation</h5><p>Ten views — Overview, Budget, Sessions, Models, Tools, Waste, Day, Projects, Data, Settings. Collapsible with <code>Ctrl+B</code>.</p></div></div>
+      <div class="anat-item"><span class="n">2</span><div><h5>Theme &amp; density</h5><p>Three themes (system / light / dark — system follows the OS) and a compact density toggle. The tool respects the machine's existing choice.</p></div></div>
+      <div class="anat-item"><span class="n">3</span><div><h5>Scope &amp; range filters</h5><p>Every view is driven by two filters: which workspaces count (scope) and which dates count (range). An empty scope says so loudly — a blank dashboard must never read as “you spent nothing”.</p></div></div>
+      <div class="anat-item"><span class="n">4</span><div><h5>KPI row</h5><p>Six headline figures: credits, per-active-day, month-to-date, models in use, measured share, flagged days. Each carries its provenance chip.</p></div></div>
+      <div class="anat-item"><span class="n">5</span><div><h5>Daily spend</h5><p>Line chart with anomaly flags — days far enough from the median to be worth a look, detected by median absolute deviation, not σ.</p></div></div>
+      <div class="anat-item"><span class="n">6</span><div><h5>Where the prompt goes</h5><p>The five-way cost-centre donut with the token table beneath. The same five colours, everywhere, forever.</p></div></div>
+      <div class="anat-item"><span class="n">7</span><div><h5>Model mix over time</h5><p>Stacked credits per day. Answers “is the premium share growing” — the question a daily total cannot.</p></div></div>
+      <div class="anat-item"><span class="n">8</span><div><h5>Calendar heatmap</h5><p>Only measured days are drawn. Click a day to open its detail view.</p></div></div>
+      <div class="anat-item"><span class="n">9</span><div><h5>Footer &amp; command palette</h5><p>The provenance legend lives in the footer of every screen; <code>Ctrl+K</code> jumps to any view. The chips are the product's honesty principle, rendered as UI.</p></div></div>
+      <div class="anat-item"><span class="n">10</span><div><h5>Token-guarded, local only</h5><p><code>tokenlens dashboard</code> serves on <code>127.0.0.1</code> behind a token — reachable only from that machine. There is no cloud half of this product.</p></div></div>
+    </div>
+
+    <div class="honesty mt-48 narrow">
+      <p style="margin:0">Only <strong>24%</strong> of these requests had a credit figure published by GitHub. The rest are estimated from rates measured on the ones that did — and every one of those is labelled as an estimate, never as a fact.<span class="chip-slot" data-prov="measured" data-src="9.4% of requests carried a published credit figure in the analysed corpus; 24% in the live ledger."></span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 13 · THE REPORT — DOWNLOAD ============ -->
+<section class="site-section ledger-top" id="report" aria-labelledby="rep-h">
+  <div class="wrap">
+    <p class="eyebrow">TAKE IT WITH YOU</p>
+    <h2 class="display-m" id="rep-h" style="margin:24px 0">The report, as it leaves the machine.</h2>
+    <p class="body-l narrow">Three exporters, one rule: an exported file is the artefact most likely to be forwarded to someone other than its subject, so it defaults to the share-safe scope. Per-session detail is withheld unless you explicitly ask for it.</p>
+
+    <div class="term mt-48" aria-label="Export commands">
+      <div class="term-head"><span class="term-dot"></span><span class="term-dot"></span><span class="term-dot"></span><span class="term-title">terminal — exports</span></div>
+      <div class="term-body">
+        <div><span class="prompt">$ </span><span class="cmd">tokenlens dashboard --html copilot-spend.html</span></div>
+        <div class="out"><span class="out-hi">✓</span> wrote copilot-spend.html <span class="dim">— one self-contained file: inline CSS, no external assets, no fetch calls. Email it to finance; it opens fully offline.</span></div>
+        <div style="margin-top:14px"><span class="prompt">$ </span><span class="cmd">tokenlens dashboard --json ledger.json</span></div>
+        <div class="out"><span class="out-hi">✓</span> wrote ledger.json <span class="dim">— the raw provenance-annotated view model, for scripting and archival.</span></div>
+        <div style="margin-top:14px"><span class="prompt">$ </span><span class="cmd">tokenlens report --month 2026-07 --out july.md</span></div>
+        <div class="out"><span class="out-hi">✓</span> wrote july.md <span class="dim">— the month as Markdown, ready to hand to an AI assistant. Per-session detail withheld as share-safe.</span></div>
+        <div style="margin-top:14px"><span class="prompt">$ </span><span class="cmd">tokenlens report --month 2026-07 --self --out july-full.md</span></div>
+        <div class="out"><span class="out-amber">!</span> <span class="dim">kept per-session detail — for your eyes only.</span></div>
+      </div>
+    </div>
+
+    <h3 class="heading mt-96" style="margin-bottom:8px">What the HTML export looks like</h3>
+    <p class="body narrow">The file the finance team receives. Same figures, same chips, zero dependencies.</p>
+    <div class="report-doc mt-32">
+      <div class="report-doc-head">
+        <span class="num" style="font-size:22px">◑</span>
+        <div>
+          <div class="num" style="font-size:19px; color:var(--text-primary)">GitHub Copilot spend — 2026-07</div>
+          <div class="caption">Generated 2026-07-30 · scope: <span class="num" style="color:var(--modelled-text)">shared</span> — per-session detail withheld · UTC days</div>
+        </div>
+      </div>
+      <div class="report-doc-body">
+        <h2>The month in figures</h2>
+        <div class="two-col" style="gap:32px">
+          <div class="ledger-line" style="margin:0">
+            <div class="ledger-value"><span class="figure-m num">66,008.2</span><span class="chip-slot" data-prov="blended" data-split="24" data-basis="24% of this total was read from published credit figures; 76% is estimated from rates measured on those." data-assume="Rate-card estimates hold for the unmeasured requests"></span></div>
+            <div class="ledger-rule"></div><div class="ledger-label">TOTAL CREDITS · = $660.08</div>
+          </div>
+          <div class="ledger-line" style="margin:0">
+            <div class="ledger-value"><span class="figure-m num">713</span><span class="chip-slot" data-prov="measured" data-src="Request count read from the local ledger."></span></div>
+            <div class="ledger-rule"></div><div class="ledger-label">REQUESTS · 57 SESSIONS · 61 ACTIVE DAYS</div>
+          </div>
+        </div>
+        <h2>Allowance and forecast</h2>
+        <p>Plan <span class="num">enterprise</span> · monthly allowance <span class="num">3,900</span> credits (plan default) · projected month-end <span class="num">9,922.0</span> credits — projected to exceed the allowance by <span class="num">6,022.0</span> credits.</p>
+        <h2>Where the tokens went</h2>
+        <table class="data">
+          <thead><tr><th>Cost centre</th><th class="r">Tokens</th><th class="r">Share</th><th class="r">Credits</th></tr></thead>
+          <tbody>
+            <tr><td class="rowname">Conversation history</td><td class="r">8,270,722</td><td class="r">49%</td><td class="r">8,242.6</td></tr>
+            <tr><td class="rowname">Tool results</td><td class="r">3,832,965</td><td class="r">23%</td><td class="r">4,325.0</td></tr>
+            <tr><td class="rowname">Tool descriptions</td><td class="r">2,601,022</td><td class="r">16%</td><td class="r">1,930.0</td></tr>
+            <tr><td class="rowname">Attached files</td><td class="r">1,231,513</td><td class="r">7%</td><td class="r">1,021.0</td></tr>
+            <tr><td class="rowname">System instructions</td><td class="r">789,442</td><td class="r">5%</td><td class="r">577.6</td></tr>
+          </tbody>
+        </table>
+        <h2>Model mix</h2>
+        <p><span class="num">11</span> models in use. <span class="num">60</span> requests on the most expensive model cost <span class="num">17,872</span> credits; <span class="num">212</span> requests on the cheapest cost <span class="num">2,782</span> — three and a half times fewer requests, six and a half times more money.</p>
+        <h2>Conversation economics</h2>
+        <p>Re-transmission multiplier <span class="num">9.8×</span> · 33rd-message penalty <span class="num">+61%</span> · duplicate file-read rate <span class="num">42.0%</span>.</p>
+        <h2>What the detectors found</h2>
+        <p>Fourteen named causes, each with its evidence and remedy — see the Waste board. Findings may overlap; they do not sum to the ledger.</p>
+        <h2>Classes that could not be assessed</h2>
+        <p>Listed separately, with what data was missing and what would unblock each one. “We found no waste” and “we could not look” are opposite claims.</p>
+        <h2>Tool surface</h2>
+        <p>Installed integrations and their per-request description cost — the Tool-Definition Tax, itemised per tool.</p>
+      </div>
+    </div>
+
+    <h3 class="heading mt-96" style="margin-bottom:8px">And the Markdown, for the AI-assisted workflow</h3>
+    <p class="body narrow"><span class="num">tokenlens report</span> writes the month as Markdown — structured for handing to an AI assistant or pasting into a doc. Same section spine: how to read this, the month in figures, allowance and forecast, where the tokens went, model mix, conversation economics, daily pattern, what the detectors found, priced model substitution, tool surface.</p>
+    <div class="term mt-32" aria-label="Markdown report sample">
+      <div class="term-head"><span class="term-dot"></span><span class="term-dot"></span><span class="term-dot"></span><span class="term-title">july.md — sample</span></div>
+      <div class="term-body" style="font-size:14px">
+        <div class="out-hi"># GitHub Copilot spend — 2026-07</div><br>
+        <div class="out-hi">## How to read this</div>
+        <div class="dim">Figures tagged [measured] were read from your local journals. Figures tagged [modelled] are rate-card estimates — the chip on each says which.</div><br>
+        <div class="out-hi">## The month in figures</div>
+        <div>- Total: <span class="out-hi">66,008.2 credits ($660.08)</span> [~24% measured]</div>
+        <div>- Requests: <span class="out">713</span> · Sessions: <span class="out">57</span> · Active days: <span class="out">61</span></div><br>
+        <div class="out-hi">## Where the tokens went</div>
+        <div>- Conversation history — 49% (8,270,722 tokens) [measured]</div>
+        <div>- Tool results — 23% (3,832,965 tokens) [measured]</div>
+        <div>- <span class="out-amber">Tool descriptions — 16% (2,601,022 tokens) [measured]</span></div><br>
+        <div class="out-hi">## Priced model substitution</div>
+        <div class="dim">What moving premium-model work to the cheapest sufficient model would have cost…</div>
+      </div>
+    </div>
+
+    <div class="honesty mt-48 narrow">
+      <p style="margin:0">A report exists to be sent somewhere, so the safe scope is the default and the permissive one has to be asked for. <span class="num">--self</span> keeps per-session detail — and the report tells you, in its header, exactly what was withheld and why.</p>
+    </div>
+  </div>
+</section>
+<!-- ============ 14 · THE FOURTEEN NAMED CAUSES ============ -->
+<section class="site-section ledger-top" id="causes" aria-labelledby="causes-h">
+  <div class="wrap">
+    <h2 class="display-m" id="causes-h">Waste is not a number. It is a list.</h2>
+    <p class="body-l narrow mt-32">“You are wasting money” is not actionable. TokenLens attributes wasted spend to fourteen specific, individually detectable causes — each with a way to detect it and a named remedy.</p>
+    <div class="causes-grid" id="causes-grid">
+      <div class="cause" tabindex="0"><div class="cause-id">W1 · DETECTED TODAY OR NEXT PHASE</div><h4>The tool-definition toll</h4><p>Paying to describe installed tools on every request, including tools never invoked.</p><div class="cause-more">Measured: 17,016 tokens per request · 21% of the median prompt · 9.1 credits per request.<span class="chip-slot" data-prov="measured" data-src="Median tool-description tokens, share and cost across 790 real requests."></span></div></div>
+      <div class="cause" tabindex="0"><div class="cause-id">W2 · DETECTED TODAY OR NEXT PHASE</div><h4>Reading the same file twice</h4><p>The AI re-reads a file it already has in front of it.</p><div class="cause-more">Measured: 42% of file reads were repeats; one file was read 72 times in a single session.<span class="chip-slot" data-prov="measured" data-src="File-read repetition measured across the analysed corpus."></span></div></div>
+      <div class="cause" tabindex="0"><div class="cause-id">W3 · DETECTED TODAY OR NEXT PHASE</div><h4>Oversized tool results</h4><p>A single command returns an enormous result that then rides along in every later step.</p><div class="cause-more">One observed result cost $0.90 on its own — then kept being re-sent.<span class="chip-slot" data-prov="measured" data-src="Largest single tool result: 167,990 tokens ≈ 90 credits ≈ $0.90."></span></div></div>
+      <div class="cause" tabindex="0"><div class="cause-id">W4 · DETECTED TODAY OR NEXT PHASE</div><h4>Stale conversations</h4><p>A chat left open across unrelated tasks, re-sending irrelevant history forever.</p><div class="cause-more">By the 33rd message each new message costs 61% more than in a fresh chat.<span class="chip-slot" data-prov="measured" data-src="33rd-message vs fresh-chat cost per message."></span></div></div>
+      <div class="cause" tabindex="0"><div class="cause-id">W5 · DETECTED TODAY OR NEXT PHASE</div><h4>Over-powered model choice</h4><p>The most expensive model used for work a cheaper one handles identically.</p><div class="cause-more">Model price spread, most vs least expensive: 15.1×.<span class="chip-slot" data-prov="measured" data-src="Price spread across models in the analysed corpus."></span></div></div>
+      <div class="cause" tabindex="0"><div class="cause-id">W6 · DETECTED TODAY OR NEXT PHASE</div><h4>Runaway loops</h4><p>Very long agent loops that consume heavily and produce no surviving change.</p><div class="cause-more">Detected from loop length vs. surviving-change analysis in the outcomes module.</div></div>
+      <div class="cause" tabindex="0"><div class="cause-id">W7 · SPECIFIED</div><h4>Abandoned work</h4><p>Credits spent on work that never reached the codebase.</p><div class="cause-more">Detector specified for the waste-attribution phase.</div></div>
+      <div class="cause" tabindex="0"><div class="cause-id">W8 · SPECIFIED</div><h4>The same question, fifty times</h4><p>Fifty engineers independently asking the same thing about the same internal system.</p><div class="cause-more">Detector specified for the waste-attribution phase.</div></div>
+      <div class="cause" tabindex="0"><div class="cause-id">W9 · SPECIFIED</div><h4>Context compaction</h4><p>Automatic summarisation triggered by unmanaged context growth.</p><div class="cause-more">In 115 days it ran 84 times at a median of 92 seconds each — about two hours of engineers watching a progress indicator.<span class="chip-slot" data-prov="measured" data-src="84 compaction events, median wait 92,414 ms, total ~2.15 hours."></span></div></div>
+      <div class="cause" tabindex="0"><div class="cause-id">W10 · SPECIFIED</div><h4>Instruction bloat</h4><p>Standing instruction files that grew past their usefulness.</p><div class="cause-more">Detector specified for the waste-attribution phase.</div></div>
+      <div class="cause" tabindex="0"><div class="cause-id">W11 · SPECIFIED</div><h4>Search-snippet leakage</h4><p>Paying for previews of files that were never opened.</p><div class="cause-more">Detector specified for the waste-attribution phase.</div></div>
+      <div class="cause" tabindex="0"><div class="cause-id">W12 · SPECIFIED</div><h4>Premium models on trivial work</h4><p>Titles, summaries and commit messages generated on the most expensive model available.</p><div class="cause-more">Detector specified for the waste-attribution phase.</div></div>
+      <div class="cause" tabindex="0"><div class="cause-id">W13 · SPECIFIED</div><h4>Over-provisioned reasoning</h4><p>Deep-reasoning settings applied to work that does not need them.</p><div class="cause-more">Detector specified for the waste-attribution phase.</div></div>
+      <div class="cause" tabindex="0"><div class="cause-id">W14 · SPECIFIED</div><h4>Missing context isolation</h4><p>Expensive exploration done in the main conversation instead of an isolated cheaper one.</p><div class="cause-more">Detector specified for the waste-attribution phase.</div></div>
+    </div>
+    <div class="card mt-64">
+      <h3>W9 is worth pausing on.</h3>
+      <p class="card-sub" style="font-size:18px">In 115 days, automatic summarisation ran <span class="num">84</span> times and took a median of <span class="num">92 seconds</span> each — about <span class="num">two hours</span> of engineers watching a progress indicator. That is not a billing problem. That is a productivity problem you were also not being shown.<span class="chip-slot" data-prov="measured" data-src="84 compaction events, median 92,414 ms, total ~2.15 hours over 115 days."></span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 15 · THE INTERVENTION ============ -->
+<section class="site-section ledger-top" id="intervention" aria-labelledby="int-h">
+  <div class="wrap">
+    <p class="eyebrow">THE PART THAT SURPRISES PEOPLE</p>
+    <h2 class="display-l" id="int-h" style="margin:24px 0">Most of the saving needs nobody to do anything differently.</h2>
+    <div class="body-l narrow-780">
+      <p>The instinctive assumption is that reducing AI spend means asking engineers to use it less. That would be slow, unpopular, and would cost you more in lost productivity than it saved.</p>
+      <p>That is not the intervention.</p>
+      <p>The largest savings come from <strong>settings</strong> — which model handles which kind of work, how large a single tool result may be, which integrations stay installed. These are configuration values. They are deployed the same way every other setting in your organisation is deployed, through tooling you already own.</p>
+      <p><strong>No training. No policy memo. No behaviour change. Your engineers keep working exactly as they do now.</strong></p>
+    </div>
+    <div class="contrast-grid mt-64">
+      <div>
+        <p class="micro" style="margin-bottom:16px">TIER A — CONFIGURATION ONLY</p>
+        <p class="body">Settings deployed through your existing device management.</p>
+        <p class="body">Developer effort: <strong>None.</strong> They will not notice.</p>
+        <div class="ledger-line"><div class="ledger-value"><span class="figure-m num">~35%</span><span class="chip-slot" data-prov="modelled" data-basis="Projected from measured cost shares across 5,000 seats on Copilot Enterprise." data-assume="Your fleet's usage resembles the measured profile|Model prices and allowances stay as they are|Not yet observed on a deployed policy"></span></div><div class="ledger-rule"></div><div class="ledger-label">MODELLED REDUCTION IN SPEND</div></div>
+        <p class="caption">Availability: roadmap phase D5</p>
+      </div>
+      <div>
+        <p class="micro" style="margin-bottom:16px">TIER B — LIVE GUARDRAILS</p>
+        <p class="body">Automatic prevention of specific wasteful actions as they happen.</p>
+        <p class="body">Developer effort: <strong>None.</strong> Prevention is silent.</p>
+        <div class="ledger-line"><div class="ledger-value"><span class="figure-m num">up to ~53%</span><span class="chip-slot" data-prov="modelled" data-basis="Tier A plus live guardrails, projected from measured cost shares." data-assume="Guardrails prevent the modelled share of wasteful actions|Not yet observed on a deployed policy"></span></div><div class="ledger-rule"></div><div class="ledger-label">COMBINED MODELLED REDUCTION</div></div>
+        <p class="caption">Availability: roadmap phase D6</p>
+      </div>
+    </div>
+    <div class="honesty mt-48 narrow-780">
+      <p style="margin:0">Both figures are <strong>modelled</strong> — projected from measured cost shares, not yet observed on a deployed policy. That is precisely why the product's final phase is a <strong>randomised trial on your own fleet</strong>, with a holdout group, so the real figure replaces the projected one. We will report the gap between them, including if it is unflattering.<span class="chip-slot" data-prov="modelled" data-basis="Stated as a commitment about the product's final phase, not a measured outcome." data-assume="Phase 9 (randomised proof) is completed as specified"></span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 16 · ROADMAP ============ -->
+<section class="site-section ledger-top" id="roadmap" aria-labelledby="rm-h">
+  <div class="wrap">
+    <h2 class="display-m" id="rm-h">Built in order, with the measurement first.</h2>
+    <p class="body-l narrow mt-32">This product was built in a deliberate sequence: <strong>measure before attributing, attribute before recommending, recommend before enforcing, and prove before claiming.</strong> Each phase is only useful because the one before it is trustworthy.</p>
+    <div class="roadmap" id="roadmap-grid">
+      <div class="rm-phase done"><div class="rm-n">PHASE 1 · COMPLETE</div><h4>Foundation</h4><p>The honest-measurement guarantees, enforced in code.</p></div>
+      <div class="rm-phase done"><div class="rm-n">PHASE 2 · COMPLETE</div><h4>Credit ledger</h4><p>Exact, traceable accounting of every credit.</p></div>
+      <div class="rm-phase done"><div class="rm-n">PHASE 3 · COMPLETE</div><h4>Dashboard &amp; reports</h4><p>The itemised bill, on screen and exportable.</p></div>
+      <div class="rm-phase"><div class="rm-n">PHASE 4 · NEXT</div><h4>Waste attribution</h4><p>The fourteen named causes, detected and ranked.</p></div>
+      <div class="rm-phase"><div class="rm-n">PHASE 5 · SPECIFIED</div><h4>Simulation</h4><p>“This change would have saved N last quarter.”</p></div>
+      <div class="rm-phase"><div class="rm-n">PHASE 6 · SPECIFIED</div><h4>Policy compiler</h4><p>The exact settings file your IT team deploys.</p></div>
+      <div class="rm-phase"><div class="rm-n">PHASE 7 · SPECIFIED</div><h4>Runtime guardrails</h4><p>Prevention at the moment of spend.</p></div>
+      <div class="rm-phase"><div class="rm-n">PHASE 8 · SPECIFIED</div><h4>Editor integration</h4><p>Live cost visibility for the developer.</p></div>
+      <div class="rm-phase"><div class="rm-n">PHASE 9 · SPECIFIED</div><h4>Randomised proof</h4><p>Measured savings with confidence intervals.</p></div>
+      <div class="rm-phase"><div class="rm-n">PHASE 10 · SPECIFIED</div><h4>Organisation rollup</h4><p>Fleet-wide view and self-tuning policy.</p></div>
+    </div>
+    <p class="body-l narrow mt-48">Phases 1–3 are working software running on real data today. Everything shown in this presentation as <em>measured</em> came out of them. Everything shown as <em>modelled</em> is waiting on phase 9 to become measured.<span class="chip-slot" data-prov="measured" data-src="Build status as at the current release; phases 1–3 produce the live figures shown."></span></p>
+  </div>
+</section>
+
+<!-- ============ 17 · THE SCENARIO ============ -->
+<section id="scenario" aria-labelledby="scen-h" class="ledger-top">
+  <div class="wrap" style="padding-top:200px; padding-bottom:96px">
+    <p class="eyebrow">WHAT THIS LOOKS LIKE FROM THE INSIDE</p>
+    <h2 class="display-l" id="scen-h" style="margin:24px 0">An ordinary Tuesday.</h2>
+    <p class="subhead narrow-780">Priya is a senior engineer. She is good at her job. On this particular Tuesday she does nothing wrong, nothing unusual, and nothing anybody would flag in a review.</p>
+    <p class="subhead">Watch the meter.</p>
+  </div>
+  <div class="pin-stage" id="priya-pin" style="height:420vh">
+    <div style="position:sticky; top:0; height:100vh; display:flex; align-items:center; overflow:hidden">
+      <div class="wrap" style="width:100%">
+        <div class="taxi-meter" aria-live="polite">
+          <div class="micro" style="margin-bottom:8px">CREDITS TODAY <span class="chip-slot" data-prov="modelled" data-basis="Constructed from measured medians: a typical request (44.5 credits), a typical session penalty, a typical compaction." data-assume="One illustrative day assembled from real medians — not a recording"></span></div>
+          <div class="taxi-val num" id="taxi-val">0</div>
+          <div class="caption" id="taxi-usd">$0.00</div>
+        </div>
+        <div class="timeline" id="priya-timeline" style="max-width:640px">
+          <div class="tl-beat" data-total="52"><div class="tl-time">09:12</div><div class="tl-event">Opens yesterday's chat window to pick up where she left off. Asks a small question.</div><div class="tl-note">Yesterday's entire conversation is re-sent with it.</div></div>
+          <div class="tl-beat" data-total="110"><div class="tl-time">09:40</div><div class="tl-event">The assistant reads the same configuration file for the fourth time this session.</div><div class="tl-note">It already had it.</div></div>
+          <div class="tl-beat" data-total="155"><div class="tl-time">10:15</div><div class="tl-event">Asks a one-line question: “what does this function do?”</div><div class="tl-note">Costs almost the same as a full refactor. The floor, not the work.</div></div>
+          <div class="tl-beat" data-total="290"><div class="tl-time">11:30</div><div class="tl-event">A command returns a very large output. It stays in context for the rest of the day.</div><div class="tl-note">Every later step re-sends it.</div></div>
+          <div class="tl-beat" data-total="350"><div class="tl-time">12:05</div><div class="tl-event">Still the same chat window. Now on a completely different task.</div><div class="tl-note">The morning's unrelated discussion is still being paid for, every turn.</div></div>
+          <div class="tl-beat" data-total="410"><div class="tl-time">14:20</div><div class="tl-event">The assistant pauses for a minute and a half to summarise the conversation so far.</div><div class="tl-note">It ran out of room. She waits.</div></div>
+          <div class="tl-beat" data-total="520"><div class="tl-time">15:45</div><div class="tl-event">A complex refactor. Genuinely hard work, genuinely well done.</div><div class="tl-note">This one was worth it.</div></div>
+          <div class="tl-beat" data-total="590"><div class="tl-time">16:30</div><div class="tl-event">Same chat window. Fourth unrelated task of the day.</div><div class="tl-note"></div></div>
+          <div class="tl-beat" data-total="640"><div class="tl-time">17:50</div><div class="tl-event">Closes the laptop.</div><div class="tl-note">She has no idea. There was never a number.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="wrap" style="padding-bottom:200px">
+    <p class="caption narrow">This day is <strong>constructed from measured medians</strong> — a typical request, a typical session penalty, a typical compaction. It is an illustration of measured behaviour, not a recording of one real Tuesday.<span class="chip-slot" data-prov="modelled" data-basis="Per-event figures built from the measured medians: 44.5 credits per request, 56.9 credits for a 33rd-turn message." data-assume="Illustrative assembly, not a recorded day"></span></p>
+    <div class="mt-64">
+      <p class="micro" style="margin-bottom:20px">PRIYA'S TUESDAY, DECOMPOSED</p>
+      <div class="cc-bar" style="height:72px">
+        <div class="cc-seg cc-messages" style="width:46%"></div>
+        <div class="cc-seg cc-tool-results" style="width:21%"></div>
+        <div class="cc-seg cc-tool-defs" style="width:19%; box-shadow: inset 0 0 0 2px var(--waste)"></div>
+        <div class="cc-seg cc-files" style="width:8%"></div>
+        <div class="cc-seg cc-system" style="width:6%"></div>
+      </div>
+      <p class="body-l narrow mt-32">Of Priya's Tuesday, roughly <strong>a third</strong> was avoidable — re-reads, a stale window, an oversized result, and a model heavier than the task needed.<span class="chip-slot" data-prov="modelled" data-basis="Avoidable share estimated from the measured waste causes applied to the illustrative day." data-assume="Waste-cause shares from the measured corpus"></span></p>
+      <p class="body-l narrow"><strong>Priya did nothing wrong.</strong> She was never shown a number. Every decision that created this was made in the absence of information that already existed on her own laptop.</p>
+    </div>
+    <p class="display-l center mt-96" style="padding:120px 0">Now multiply Priya by five thousand.</p>
+  </div>
+
+  <!-- Level 2 · Meridian -->
+  <div class="wrap" style="padding-bottom:96px">
+    <p class="eyebrow" style="color:var(--modelled-text)">ILLUSTRATIVE EXAMPLE · MODELLED FROM MEASURED RATES</p>
+    <div class="card mt-32" style="max-width:720px">
+      <h3 style="font-family:var(--font-mono); letter-spacing:0.06em">MERIDIAN FINANCIAL GROUP</h3>
+      <p class="card-sub"><span class="num">5,000</span> engineers · GitHub Copilot Enterprise · <span class="num">3,900</span> credits included per seat per month</p>
+    </div>
+  </div>
+  <div class="pin-stage" id="meridian-pin" style="height:520vh">
+    <div style="position:sticky; top:0; height:100vh; display:flex; align-items:center; overflow:hidden">
+      <div class="wrap" style="width:100%">
+        <div class="beat" data-act="0" style="flex-direction:column; align-items:flex-start; text-align:left">
+          <p class="micro" style="margin-bottom:16px">ACT I · SEPTEMBER — THE FIRST BILL AFTER THE ALLOWANCE DROPPED</p>
+          <div class="ledger-line" style="width:100%; max-width:820px">
+            <div class="ledger-value"><span class="figure-xl num count" data-to="3613314" data-format="money0" data-actfig>0</span><span class="chip-slot" data-prov="modelled" data-basis="Measured per-developer run-rate of $99.22/month applied across 5,000 seats, minus the published included allowance." data-assume="Your fleet's usage resembles the measured heavy-user profile|Model prices and allowances stay as they are"></span></div>
+            <div class="ledger-rule"></div>
+            <div class="ledger-label">ANNUAL OVERAGE · BEYOND THE INCLUDED ALLOWANCE</div>
+          </div>
+          <table class="data mt-32" style="max-width:820px">
+            <tbody>
+              <tr><td class="rowname">Annual consumption at measured rate</td><td class="r">$5,953,200 <span class="chip-slot" data-prov="modelled" data-basis="Run-rate of $99.22/developer/month across 5,000 seats for 12 months." data-assume="Heavy-user profile across the fleet"></span></td></tr>
+              <tr><td class="rowname">Included in subscription</td><td class="r">−$2,340,000 <span class="chip-slot" data-prov="measured" data-src="Arithmetic on the published Enterprise allowance: 3,900 credits × 5,000 seats × 12 months × $0.01."></span></td></tr>
+              <tr><td class="rowname"><strong>Annual overage</strong></td><td class="r"><strong>$3,613,314</strong> <span class="chip-slot" data-prov="modelled" data-basis="Consumption minus included allowance, as above." data-assume="As above"></span></td></tr>
+            </tbody>
+          </table>
+          <p class="body-l narrow mt-32">Nobody at Meridian can explain this number. It is not that they lack the will — the information does not exist. There is a total, a date, and an amount due.</p>
+          <p class="body-l narrow">Somewhere inside it is a large amount of money buying nothing at all. Nobody can point at it.</p>
+          <p class="caption narrow mt-24"><em>Real fleets have a long tail of lighter users, so a real total would likely be lower — but spend concentrates in heavy users, and this profile is a heavy user.</em></p>
+        </div>
+        <div class="beat" data-act="1" style="flex-direction:column; align-items:flex-start; text-align:left; display:none">
+          <p class="micro" style="margin-bottom:16px">ACT II · WEEK ONE — TWENTY VOLUNTEERS RUN ONE COMMAND</p>
+          <p class="body-l narrow">No procurement. No infrastructure. No data leaves anyone's laptop. Four days later Meridian has something they have never had: <strong>an itemised bill.</strong></p>
+          <div style="width:100%; max-width:900px; margin-top:32px" id="meridian-decomp"></div>
+          <p class="body-l narrow mt-32">Three of Meridian's installed integrations had <strong>never been invoked once</strong> in the entire measured period.<span class="chip-slot" data-prov="modelled" data-basis="Illustrative finding of the example; the underlying mechanism is measured." data-assume="Example scenario, not an observed fleet"></span></p>
+          <p class="body-l narrow">They were being described to the model on every request, from every engineer, all year.</p>
+          <p class="caption narrow mt-24">Levers overlap; they combine multiplicatively, not additively. Totalled naively they exceed the modelled 35–53% — the honest total is smaller than the sum of its parts.</p>
+        </div>
+        <div class="beat" data-act="2" style="display:none; width:100%">
+          <div class="two-col" style="width:100%">
+            <div>
+              <p class="micro" style="margin-bottom:16px">ACT III · WEEK TWO — ONE CONFIGURATION CHANGE</p>
+              <p class="body-l">Meridian's platform team receives a settings file. They push it through the same device-management tooling they use for every other setting in the organisation.</p>
+              <div class="term mt-32"><div class="term-head"><span class="term-dot"></span><span class="term-dot"></span><span class="term-dot"></span><span class="term-title">policy.yml — emitted by tokenlens</span></div>
+              <div class="term-body settings-file" id="policy-file"></div></div>
+            </div>
+            <div>
+              <p class="micro" style="margin-bottom:16px">5,000 SEATS · THE CONFIGURATION LANDS</p>
+              <div class="fleet-dots" id="fleet-dots" aria-hidden="true"></div>
+              <div class="mt-32">
+                <p class="body-l">Total engineering hours required from the other <span class="num">4,980</span> developers: <strong>zero.</strong></p>
+                <p class="body-l">Number of engineers who need to be told anything: <strong>zero.</strong></p>
+                <p class="body-l">Number of workflows that change: <strong>zero.</strong></p>
+              </div>
+              <div class="honesty mt-32"><p style="margin:0">This is the entire intervention for the largest tier of savings. It is a configuration change, deployed by one team, through tooling that already exists.</p></div>
+            </div>
+          </div>
+        </div>
+        <div class="beat" data-act="3" style="flex-direction:column; align-items:flex-start; text-align:left; display:none">
+          <p class="micro" style="margin-bottom:16px">ACT IV · THREE MONTHS LATER</p>
+          <p class="body-l narrow">The included allowance is fixed. It does not shrink when you spend less. So <strong>every credit you stop consuming comes off the overage line</strong> — the only line finance actually feels.</p>
+          <p class="body-l narrow">That creates leverage: a <span class="num">35%</span> reduction in consumption produces a <span class="num">58%</span> reduction in the bill.<span class="chip-slot" data-prov="modelled" data-basis="35% less consumed against the fixed $2.34M included allowance." data-assume="As in Act I"></span></p>
+          <div class="leverage-bar" style="max-width:900px">
+            <div class="lev-row"><div class="lev-label">BEFORE</div><div class="lev-track"><div class="lev-included" style="width:39.3%">INCLUDED $2.34M</div><div class="lev-overage" id="lev-before" style="width:60.7%">OVERAGE $3.61M</div></div></div>
+            <div class="lev-row"><div class="lev-label">AFTER</div><div class="lev-track"><div class="lev-included" style="width:39.3%">INCLUDED $2.34M</div><div class="lev-overage" id="lev-after" style="width:60.7%">OVERAGE $1.53M</div></div></div>
+          </div>
+          <div class="three-col" style="max-width:900px">
+            <div class="ledger-line" style="margin:0"><div class="ledger-value"><span class="figure-m num">35%</span><span class="chip-slot" data-prov="modelled" data-basis="Tier A configuration-only reduction, projected from measured cost shares." data-assume="Not yet observed on a deployed policy"></span></div><div class="ledger-rule"></div><div class="ledger-label">LESS CONSUMED</div></div>
+            <div class="ledger-line" style="margin:0"><div class="ledger-value"><span class="figure-m num">$2,083,620</span><span class="chip-slot" data-prov="modelled" data-basis="35% of the modelled $5.95M annual consumption, all landing on the overage line." data-assume="As above"></span></div><div class="ledger-rule"></div><div class="ledger-label">LESS PER YEAR</div></div>
+            <div class="ledger-line" style="margin:0"><div class="ledger-value"><span class="figure-m num">58%</span><span class="chip-slot" data-prov="modelled" data-basis="Overage bill falls from $3.61M to $1.53M because the included $2.34M does not move." data-assume="As above"></span></div><div class="ledger-rule"></div><div class="ledger-label">SMALLER OVERAGE BILL</div></div>
+          </div>
+          <p class="body-l narrow mt-32">With live guardrails as well as configuration, the modelled reduction rises to <span class="num">53%</span>, which would take the overage bill from <span class="num">$3.61M</span> to roughly <span class="num">$0.46M</span> — an <span class="num">87%</span> reduction.<span class="chip-slot" data-prov="modelled" data-basis="Tier A+B combined reduction applied to the same ledger." data-assume="Guardrails prevent the modelled share"></span></p>
+          <p class="body-l narrow">At a <span class="num">61%</span> reduction, the overage disappears entirely and Meridian returns to living inside its subscription.<span class="chip-slot" data-prov="modelled" data-basis="61% of $5.95M ≈ $3.63M, covering the $3.61M overage." data-assume="As above"></span></p>
+          <p class="display-m mt-96 narrow-780"><strong>Every figure in this scenario is modelled.</strong></p>
+          <p class="body-l narrow">They are projections from measured cost shares — not observations of a deployed policy. That is not a hedge; it is the product's central rule, and it is why the final phase of this product is a <strong>randomised trial on your own fleet</strong>, with a holdout group, so that the projected number is replaced by a measured one.</p>
+          <p class="display-m narrow-780" style="margin-top:32px">We will report that measured number even if it is lower than this page.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 18 · CALCULATOR ============ -->
+<section class="site-section ledger-top" id="calculator" aria-labelledby="calc-h">
+  <div class="wrap">
+    <p class="eyebrow">YOUR NUMBER, NOT OURS</p>
+    <h2 class="display-m" id="calc-h" style="margin:24px 0">What would this be worth to you?</h2>
+    <div class="calc-grid mt-64">
+      <div>
+        <div class="calc-control">
+          <div class="ctl-head"><label for="calc-seats" class="micro">NUMBER OF ENGINEERS</label><span class="ctl-val num" id="calc-seats-val">5,000</span></div>
+          <input type="range" id="calc-seats" min="50" max="20000" step="50" value="5000" aria-label="Number of engineers">
+          <div style="display:flex; justify-content:space-between; margin-top:8px"><span class="micro">50</span><span class="micro">20,000</span></div>
+        </div>
+        <div class="calc-control">
+          <label class="micro" style="margin-bottom:12px; display:block">PLAN</label>
+          <div class="seg-toggle" role="group" aria-label="Plan">
+            <button type="button" data-plan="business" aria-pressed="false">Business</button>
+            <button type="button" data-plan="enterprise" aria-pressed="true">Enterprise</button>
+          </div>
+        </div>
+        <div class="calc-control">
+          <label class="micro" style="margin-bottom:12px; display:block">USAGE INTENSITY</label>
+          <div class="seg-3" role="group" aria-label="Usage intensity">
+            <button type="button" data-intensity="light" aria-pressed="false">Light</button>
+            <button type="button" data-intensity="moderate" aria-pressed="false">Moderate</button>
+            <button type="button" data-intensity="heavy" aria-pressed="true">Heavy · measured</button>
+          </div>
+        </div>
+        <div class="calc-control">
+          <label class="micro" style="margin-bottom:12px; display:block">INTERVENTION TIER</label>
+          <div class="seg-toggle" role="group" aria-label="Intervention tier">
+            <button type="button" data-tier="config" aria-pressed="true">Configuration only</button>
+            <button type="button" data-tier="guardrails" aria-pressed="false">Config + guardrails</button>
+          </div>
+        </div>
+        <div class="card mt-48" style="padding:28px">
+          <h4 style="font-family:var(--font-mono); font-size:12px; text-transform:uppercase; letter-spacing:0.12em; margin-bottom:14px; color:var(--modelled-text)">What this calculator assumes</h4>
+          <ul class="caption" style="padding-left:18px; line-height:1.9">
+            <li>Your engineers' usage resembles the measured profile of a heavy Copilot user.</li>
+            <li>Model prices and allowances stay as they are today.</li>
+            <li>The reduction percentages are modelled from measured cost shares — <strong>they have not yet been observed on a deployed policy.</strong></li>
+            <li>Real organisations have a long tail of lighter users, so a real total is likely lower than the heavy-profile projection.</li>
+            <li>Light / Moderate tiers scale the measured heavy run-rate by 0.25 / 0.55 — illustrative, not measured.</li>
+          </ul>
+          <p class="caption" style="margin-top:12px; color:var(--modelled-text)"><strong>This is a projection, not a quote.</strong><span class="chip-slot" data-prov="modelled" data-basis="All calculator outputs are projections from measured cost shares." data-assume="See the assumptions listed above"></span></p>
+        </div>
+      </div>
+      <div>
+        <div class="ledger-line" style="margin-top:0">
+          <div class="ledger-value"><span class="figure-l num" id="calc-before">$3,613,320</span><span class="chip-slot" data-prov="modelled" data-basis="Monthly overage × 12 × $0.01, from the measured run-rate." data-assume="As listed in the assumptions panel"></span></div>
+          <div class="ledger-rule"></div><div class="ledger-label">ANNUAL OVERAGE TODAY</div>
+        </div>
+        <div class="ledger-line">
+          <div class="ledger-value"><span class="figure-l num" id="calc-after">$1,529,658</span><span class="chip-slot" data-prov="modelled" data-basis="Overage after applying the tier's modelled reduction to consumption." data-assume="As listed in the assumptions panel"></span></div>
+          <div class="ledger-rule"></div><div class="ledger-label">ANNUAL OVERAGE AFTER</div>
+        </div>
+        <div class="leverage-bar">
+          <div class="lev-row"><div class="lev-label">BEFORE</div><div class="lev-track"><div class="lev-included" id="calc-inc-b" style="width:39.3%"></div><div class="lev-overage" id="calc-ov-b" style="width:60.7%"></div></div></div>
+          <div class="lev-row"><div class="lev-label">AFTER</div><div class="lev-track"><div class="lev-included" id="calc-inc-a" style="width:39.3%"></div><div class="lev-overage" id="calc-ov-a" style="width:60.7%"></div></div></div>
+        </div>
+        <div class="ledger-line">
+          <div class="ledger-value"><span class="figure-l num" id="calc-saving" style="color:var(--measured-text)">$2,083,662</span><span class="chip-slot" data-prov="modelled" data-basis="Annual overage before minus annual overage after." data-assume="As listed in the assumptions panel"></span></div>
+          <div class="ledger-rule"></div><div class="ledger-label">ANNUAL SAVING</div>
+        </div>
+        <div class="ledger-line">
+          <div class="ledger-value"><span class="figure-l num" id="calc-pct">58%</span><span class="chip-slot" data-prov="modelled" data-basis="Saving as a share of the overage bill before." data-assume="As listed in the assumptions panel"></span></div>
+          <div class="ledger-rule"></div><div class="ledger-label">OVERAGE BILL REDUCED BY</div>
+        </div>
+        <p class="body mt-32" id="calc-headroom" hidden></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 19 · TRUST, THEN THE ASK ============ -->
+<section class="site-section ledger-top" id="trust" aria-labelledby="trust-h">
+  <div class="wrap">
+    <h2 class="display-m" id="trust-h">What we will not do.</h2>
+    <div class="three-col mt-48">
+      <div class="card"><h3>No source code ever leaves the machine.</h3><p class="card-sub">Only aggregate counts and one-way hashes. Network access is denied by default.</p></div>
+      <div class="card"><h3>Every number is traceable.</h3><p class="card-sub">One command prints the file and byte position behind any figure on any report.</p></div>
+      <div class="card"><h3>We never present an estimate as a measurement.</h3><p class="card-sub">Enforced in the type system — the code physically cannot print an unlabelled estimate. It is why every number on this page carries a chip.</p></div>
+      <div class="card"><h3>Read-only on your data.</h3><p class="card-sub">Files opened for reading only. Nothing written, moved, or altered.</p></div>
+      <div class="card"><h3>We fail loudly.</h3><p class="card-sub">If something is not understood, it is reported and counted — never silently reported as zero.</p></div>
+      <div class="card"><h3>Nothing to adopt.</h3><p class="card-sub">No proxy, no server, no agent, no pipeline. One command on one laptop.</p></div>
+    </div>
+    <div class="honesty mt-48 narrow">
+      <p style="margin:0">Notice that every figure on this page carries a green or amber chip. That is not a design flourish — it is the product's third principle, applied to our own marketing. If we would not label a number honestly here, you should not trust us to label one honestly in your reports.<span class="chip-slot" data-prov="measured" data-src="Every figure on this page was checked against the data appendix before publishing."></span></p>
+    </div>
+
+    <h2 class="display-l mt-96" style="padding-top:96px">We are not asking you to buy anything.</h2>
+    <p class="subhead narrow-780 mt-32">We are asking for <strong>two weeks and twenty volunteers.</strong></p>
+    <p class="body-l narrow-780">They run one command. Nothing is installed, nothing is uploaded, nothing changes about how they work. At the end, you get your <strong>own</strong> itemised bill — your requests, your tools, your sessions, your money — with every number traceable to the file it came from.</p>
+    <p class="body-l narrow-780">Then you decide whether the number is big enough to act on.</p>
+    <div class="three-col mt-48">
+      <div class="card"><h3>Your itemised bill</h3><p class="card-sub">Where every credit went, decomposed into the five cost centres, for your own engineers.</p></div>
+      <div class="card"><h3>Your tool-definition tax</h3><p class="card-sub">Exactly what your installed integrations cost per request, and which have never once been invoked.</p></div>
+      <div class="card"><h3>Your projected saving</h3><p class="card-sub">Modelled from your own measured shares — clearly labelled as modelled, with the assumptions stated.</p></div>
+    </div>
+    <div class="cta-row">
+      <a class="btn" href="https://github.com/Ashutosh-Panda2004/TokensLens" target="_blank" rel="noopener">Start the two-week measurement</a>
+      <a class="btn btn-ghost" href="#report">See the report first</a>
+    </div>
+    <p class="display-m center" style="padding:140px 0 40px; max-width:900px; margin-left:auto; margin-right:auto">You have been paying this bill for months.<br><strong style="color:var(--measured)">This is the first time anyone has offered to read it to you.</strong></p>
+  </div>
+</section>
+
+<!-- ============ 20 · THE CLI, IN FULL ============ -->
+<section class="site-section ledger-top" id="cli" aria-labelledby="cli-h">
+  <div class="wrap">
+    <p class="eyebrow">FOR ENGINEERS</p>
+    <h2 class="display-m" id="cli-h" style="margin:24px 0">One binary. Every surface.</h2>
+    <p class="body-l narrow">One Node.js/TypeScript binary (<span class="num">tokenlens</span>) that runs as a CLI, a local dashboard server, a runtime hook target, an MCP server, and a policy compiler — one codebase, one build, one version. Not a SaaS, a proxy, a daemon, or an agent. The core makes zero network calls and zero model calls.</p>
+
+    <h3 class="heading mt-64" style="margin-bottom:24px">Install</h3>
+    <div class="two-col">
+      <div class="term"><div class="term-head"><span class="term-dot"></span><span class="term-dot"></span><span class="term-dot"></span><span class="term-title">terminal</span></div>
+        <div class="term-body">
+          <div class="comment"># prerequisites: Node.js ≥ 20, npm ≥ 10</div>
+          <div><span class="prompt">$ </span><span class="cmd">npm install --global @tokenslens/core</span></div>
+          <div><span class="prompt">$ </span><span class="cmd">tokenlens --version && tokenlens --help</span></div><br>
+          <div class="comment"># or build from source</div>
+          <div><span class="prompt">$ </span><span class="cmd">git clone https://github.com/Ashutosh-Panda2004/TokensLens.git && cd TokensLens</span></div>
+          <div><span class="prompt">$ </span><span class="cmd">npm ci && npm run build && npm run cli:link</span></div>
+        </div>
+      </div>
+      <div>
+        <h4 class="micro" style="margin-bottom:16px">CONFIGURATION · .tokenlens/config.json</h4>
+        <div class="term"><div class="term-body"><span class="out">{</span><br>&nbsp;&nbsp;<span class="out-hi">"plan"</span><span class="out">: </span><span class="out-amber">"pro"</span><span class="out">,</span><br>&nbsp;&nbsp;<span class="out-hi">"monthlyAllowance"</span><span class="out">: </span><span class="out-hi">300</span><br><span class="out">}</span></div></div>
+        <h4 class="micro mt-32" style="margin-bottom:16px">ENVIRONMENT</h4>
+        <table class="data" style="font-size:14px">
+          <tbody>
+            <tr><td class="rowname num">TOKENLENS_HOME</td><td>where to store data (default <span class="num">~/.tokenlens</span>)</td></tr>
+            <tr><td class="rowname num">TOKENLENS_MONTHLY_ALLOWANCE</td><td>override the monthly budget from the command line</td></tr>
+            <tr><td class="rowname num">TOKENLENS_LOG_LEVEL</td><td><span class="num">debug</span> for verbose output</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <h3 class="heading mt-96" style="margin-bottom:24px">Command reference</h3>
+    <div style="overflow-x:auto">
+    <table class="data" style="min-width:760px">
+      <thead><tr><th>Command</th><th>What it does</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="rowname num">tokenlens ledger</td><td>Credits by day, model, session and cost centre</td><td><span class="tag tag-today">today</span></td></tr>
+        <tr><td class="rowname num">tokenlens sessions --top 10</td><td>Where the spend went, ranked</td><td><span class="tag tag-today">today</span></td></tr>
+        <tr><td class="rowname num">tokenlens verify &lt;requestId&gt;</td><td>Every figure back to a file and byte offset</td><td><span class="tag tag-today">today</span></td></tr>
+        <tr><td class="rowname num">tokenlens budget</td><td>Burn-down against the plan allowance</td><td><span class="tag tag-today">today</span></td></tr>
+        <tr><td class="rowname num">tokenlens dashboard</td><td>Local web UI on 127.0.0.1, token-guarded</td><td><span class="tag tag-today">today</span></td></tr>
+        <tr><td class="rowname num">tokenlens dashboard --html / --json</td><td>Self-contained offline report / raw view model</td><td><span class="tag tag-today">today</span></td></tr>
+        <tr><td class="rowname num">tokenlens report --month YYYY-MM</td><td>The month as share-safe Markdown</td><td><span class="tag tag-today">today</span></td></tr>
+        <tr><td class="rowname num">tokenlens waste</td><td>Ranked causes, each with a named fix</td><td><span class="tag tag-today">today</span></td></tr>
+        <tr><td class="rowname num">tokenlens waste --explain W1</td><td>The full evidence chain behind one cause</td><td><span class="tag tag-today">today</span></td></tr>
+        <tr><td class="rowname num">tokenlens mcp-roi</td><td>Per-server invocation ROI</td><td><span class="tag tag-today">today</span></td></tr>
+        <tr><td class="rowname num">tokenlens advise</td><td>Prescriptive advice from the measured findings</td><td><span class="tag tag-today">today</span></td></tr>
+        <tr><td class="rowname num">tokenlens hook install / status / disable</td><td>Runtime guards: install, inspect, or stand down one guard</td><td><span class="tag tag-road">roadmap</span></td></tr>
+        <tr><td class="rowname num">tokenlens simulate --all</td><td>Replay history under a derived policy and price it</td><td><span class="tag tag-road">roadmap</span></td></tr>
+        <tr><td class="rowname num">tokenlens policy detect / emit / verify</td><td>Detect the channel, emit the settings file, verify it landed</td><td><span class="tag tag-road">roadmap</span></td></tr>
+        <tr><td class="rowname num">tokenlens outcomes …</td><td>Survival, displacement and causal effect of AI-assisted work</td><td><span class="tag tag-road">roadmap</span></td></tr>
+        <tr><td class="rowname num">tokenlens holdout …</td><td>Randomised trials with a holdout group</td><td><span class="tag tag-road">roadmap</span></td></tr>
+        <tr><td class="rowname num">tokenlens org …</td><td>Fleet rollup, drift alerts, aggregate-only bundles</td><td><span class="tag tag-road">roadmap</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="caption mt-32">Plus the VS Code extension — a status-bar HUD that shows cost estimates in real time while you use Copilot. Install the <span class="num">.vsix</span> from a release; it is a thin client over the same binary.</p>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px">
+          <svg width="30" height="30" viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="none" stroke="#34E5A0" stroke-width="2.5"/><line x1="3" y1="16" x2="29" y2="16" stroke="#34E5A0" stroke-width="2.5"/></svg>
+          <span style="font-family:var(--font-display); font-weight:600; font-size:20px">Token<span style="color:var(--measured)">Lens</span></span>
+        </div>
+        <p class="caption" style="max-width:380px">A measured GitHub Copilot credit ledger, waste attribution, and policy compiler for VS Code. Fully local, zero network calls. MIT licensed.</p>
+      </div>
+      <div>
+        <p class="micro" style="margin-bottom:16px">REPOSITORY</p>
+        <p class="body"><a href="https://github.com/Ashutosh-Panda2004/TokensLens" target="_blank" rel="noopener">Ashutosh-Panda2004/TokensLens</a></p>
+        <p class="body"><a href="https://github.com/Ashutosh-Panda2004/TokensLens/blob/main/README.md" target="_blank" rel="noopener">README</a> · <a href="https://github.com/Ashutosh-Panda2004/TokensLens/blob/main/ENTERPRISE.md" target="_blank" rel="noopener">Enterprise</a> · <a href="https://github.com/Ashutosh-Panda2004/TokensLens/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing</a></p>
+      </div>
+      <div>
+        <p class="micro" style="margin-bottom:16px">NUMBERS</p>
+        <p class="caption" style="max-width:320px">Every figure on this page carries a provenance chip. Green was read from a real file; amber was projected. The distinction is the product.</p>
+      </div>
+    </div>
+    <p class="caption mt-64">© 2026 · Built with restraint. The findings are strong enough that the design's job is to stay out of their way.</p>
+  </div>
+</footer>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/ScrollTrigger.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
