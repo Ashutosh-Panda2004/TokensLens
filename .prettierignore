@@ -6,3 +6,8 @@ package-lock.json
 # Hand-formatted planning documents with careful manual table alignment —
 # do not let prettier's markdown formatter reflow them.
 *.md
+
+# Launch website — a standalone static site with its own formatting
+# conventions and vendored, minified third-party assets (vendor/*.min.js)
+# that must never be reformatted.
+website/

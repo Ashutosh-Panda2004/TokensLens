@@ -42,6 +42,14 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
+      # The VS Code package typechecks and lints against core's *built*
+      # declarations (packages/core/dist) by design — see the comment in
+      # packages/vscode/tsconfig.json. On a fresh checkout that directory
+      # does not exist yet, so core must be built before the type-aware
+      # lint and typecheck steps can resolve it.
+      - name: Build core (declarations for workspace consumers)
+        run: npm run build -w @tokenslens/core
+
       - name: Lint
         run: npm run lint
 

@@ -9,6 +9,10 @@ export default tseslint.config(
       '**/dist/**',
       '**/coverage/**',
       '**/node_modules/**',
+      // The launch website: a standalone static site, deployed separately,
+      // with its own conventions — not part of any workspace tsconfig, so
+      // the type-aware rules have no program to resolve its scripts in.
+      'website/**',
       '**/*.config.ts',
       '**/*.config.js',
       // Build and CI scripts — plain Node ES modules run directly by npm or
