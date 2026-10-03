@@ -29,6 +29,22 @@ The npm package is `@tokenslens/core`; installing or linking it exposes the `tok
 The unscoped `tokenlens` package name belongs to an unrelated project and is not a TokenLens
 distribution channel.
 
+## Screenshots
+
+The local dashboard (`tokenlens dashboard`), shown with a sample ledger:
+
+![Overview — credits, daily spend, and where the prompt goes](docs/screenshots/dashboard-overview.png)
+*Overview — credits by day, flagged outliers, and the five-way split of every prompt.*
+
+![Models — share of credits and per-model rates](docs/screenshots/dashboard-models.png)
+*Models — share of credits, not requests, and the rate each model actually ran at.*
+
+![Budget — allowance burn and month-end projection](docs/screenshots/dashboard-budget.png)
+*Budget — the month so far against the plan allowance, and where it lands by month-end.*
+
+![Waste — spend attributed to named causes](docs/screenshots/dashboard-waste.png)
+*Waste — spend attributed to named, inspectable causes, each with its evidence.*
+
 ## Open source and enterprise use
 
 The complete core and VS Code extension are available under the [MIT license](LICENSE). There is
