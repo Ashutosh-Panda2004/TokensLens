@@ -684,3 +684,9 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .chip::after { content: ' [' attr(data-prov) ']'; }
   .term, .dash-frame { break-inside: avoid; }
 }
+
+@media (max-width: 560px) {
+  #me-links { top: 72px; gap: 6px; }
+  .me-link { font-size: 10px; letter-spacing: 0.06em; padding: 7px 11px 7px 10px; gap: 6px; }
+  .me-link svg { width: 14px; height: 14px; }
+}
