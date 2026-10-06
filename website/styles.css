@@ -686,7 +686,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 }
 
 @media (max-width: 560px) {
-  #me-links { top: 18px; right: 12px; gap: 6px; }
+  #me-links { top: 74px; right: 12px; gap: 6px; }
   .me-link { font-size: 10px; letter-spacing: 0.06em; padding: 7px 11px 7px 10px; gap: 6px; }
   .me-link svg { width: 14px; height: 14px; }
 }
