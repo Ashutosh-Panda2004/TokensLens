@@ -304,10 +304,10 @@ table.data .rowname { color: var(--text-primary); }
 #gh-link:hover svg { fill: var(--accent); transform: rotate(-8deg) scale(1.12); }
 #gh-link:hover .gh-arrow { color: var(--accent); transform: translate(2px, -2px); }
 
-/* ---- Author links (under the repo pill) ---- */
+/* ---- Author links (top-right) ---- */
 #me-links {
-  position: fixed; top: 76px; left: 22px; z-index: 90;
-  display: flex; gap: 8px; flex-wrap: wrap;
+  position: fixed; top: 22px; right: 22px; left: auto; z-index: 90;
+  display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;
 }
 .me-link {
   display: flex; align-items: center; gap: 8px;
@@ -686,7 +686,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 }
 
 @media (max-width: 560px) {
-  #me-links { top: 72px; gap: 6px; }
+  #me-links { top: 18px; right: 12px; gap: 6px; }
   .me-link { font-size: 10px; letter-spacing: 0.06em; padding: 7px 11px 7px 10px; gap: 6px; }
   .me-link svg { width: 14px; height: 14px; }
 }
