@@ -13,6 +13,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<style>
+.demo-frame{max-width:960px;margin:40px auto 0;border:1px solid var(--hairline-bright);border-radius:12px;overflow:hidden;background:#000}
+.demo-frame video{display:block;width:100%;height:auto}
+</style>
 </head>
 <body>
 
@@ -66,6 +70,7 @@
         <p class="subhead" style="max-width:620px">GitHub now bills your organisation by the token — and stops working when the budget runs out. It tells you what you spent. It has never told you what you bought.</p>
         <p class="subhead" style="max-width:620px">TokenLens reads the usage records Copilot already writes to your engineers' machines and turns an unexplained total into an itemised bill.</p>
         <div class="cta-row">
+          <a class="btn" href="#demo">Watch it run (87s) ↓</a>
           <a class="btn" href="#anatomy">See what a single request actually costs ↓</a>
           <a class="btn btn-ghost" href="#dashboard">Skip to the numbers</a>
         </div>
@@ -90,6 +95,19 @@
       <span class="micro">SCROLL TO MEASURE</span>
       <span class="line"></span>
     </div>
+  </div>
+</section>
+
+<!-- ============ DEMO VIDEO ============ -->
+<section class="site-section" id="demo" aria-labelledby="demo-h">
+  <div class="wrap">
+    <p class="eyebrow"><span>WATCH IT RUN</span></p>
+    <h2 class="display-l" id="demo-h" style="margin:24px 0">The tool, running: extension, dashboard, CLI.</h2>
+    <p class="body-l narrow">TokenLens starts in the editor. The VS Code extension shows live spend, one click opens the dashboard, and underneath it is one CLI doing the measuring. Eighty-seven seconds, start to finish.</p>
+    <div class="demo-frame">
+      <video src="assets/tokenlens-demo.mp4" poster="assets/tokenlens-demo-poster.jpg" controls preload="none" playsinline></video>
+    </div>
+    <p class="caption mt-24">Recorded against a sample ledger. Every figure in the video is computed by the tool itself.</p>
   </div>
 </section>
 
