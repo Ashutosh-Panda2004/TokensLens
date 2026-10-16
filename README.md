@@ -31,9 +31,10 @@ distribution channel.
 
 ## Demo
 
-TokenLens running end to end: the VS Code extension, the dashboard it opens, and the CLI underneath (87 seconds).
+TokenLens running end to end: the VS Code extension, the dashboard it opens, and the CLI underneath.
 
-<video src="https://github.com/Ashutosh-Panda2004/TokensLens/raw/refs/heads/main/docs/media/tokenlens-demo.mp4" poster="https://raw.githubusercontent.com/Ashutosh-Panda2004/TokensLens/main/docs/media/tokenlens-demo-poster.jpg" controls width="100%"></video>
+[![Watch the TokenLens demo](docs/media/tokenlens-demo-poster.jpg)](https://github.com/Ashutosh-Panda2004/TokensLens/blob/main/docs/media/tokenlens-demo.mp4)
+*▶ Watch the demo — 87 seconds. The video also lives in this repo at `docs/media/tokenlens-demo.mp4`.*
 
 ## Screenshots
 
