@@ -29,6 +29,12 @@ The npm package is `@tokenslens/core`; installing or linking it exposes the `tok
 The unscoped `tokenlens` package name belongs to an unrelated project and is not a TokenLens
 distribution channel.
 
+## Demo
+
+TokenLens running end to end: the VS Code extension, the dashboard it opens, and the CLI underneath (87 seconds).
+
+<video src="docs/media/tokenlens-demo.mp4" poster="docs/media/tokenlens-demo-poster.jpg" controls width="100%"></video>
+
 ## Screenshots
 
 The local dashboard (`tokenlens dashboard`), shown with a sample ledger:
