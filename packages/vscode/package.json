@@ -210,7 +210,7 @@
   },
   "devDependencies": {
     "@types/vscode": "^1.140.0",
-    "@vscode/vsce": "^4.0.0",
+    "@vscode/vsce": "^4.1.0",
     "@tokenslens/core": "*",
     "vitest": "^5.0.4"
   }
